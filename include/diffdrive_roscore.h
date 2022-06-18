@@ -24,50 +24,59 @@
 #ifndef PROJECT_DIFFDRIVE_ROSCORE_H
 #define PROJECT_DIFFDRIVE_ROSCORE_H
 
-#include "ros/ros.h"
-#include "ros/package.h"
+#include <chrono>
+#include <functional>
+#include <memory>
+#include <string>
 
-#include "roboclaw/RoboclawEncoderSteps.h"
-#include "nav_msgs/Odometry.h"
-#include "geometry_msgs/Twist.h"
+#include "rclcpp/rclcpp.hpp"
+
+#include "roboclaw/msg/encoder_steps.hpp"
+#include "roboclaw/msg/motor_velocity.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+// #include "geometry_msgs/msg/quaternion.hpp"
+
+using namespace std;
 
 namespace roboclaw {
 
-    class diffdrive_roscore {
+    class DiffDriveCore : public rclcpp::Node 
+    {
     public:
-        diffdrive_roscore(ros::NodeHandle nh, ros::NodeHandle nh_private);
+        DiffDriveCore(string name);
+        ~DiffDriveCore() {};
 
     private:
-        ros::NodeHandle nh;
-        ros::NodeHandle nh_private;
+        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr mOdomPub;
+        rclcpp::Publisher<roboclaw::msg::MotorVelocity>::SharedPtr mMotorPub;
 
-        ros::Publisher odom_pub;
-        ros::Publisher motor_pub;
+        rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr mTwistSub;
+        rclcpp::Subscription<roboclaw::msg::EncoderSteps>::SharedPtr mEncSub;
+        
+        int mLastSteps1;
+        int mLastSteps2;
 
-        ros::Subscriber twist_sub;
-        ros::Subscriber encoder_sub;
+        double mLastX;
+        double mLastY;
+        double mLastTheta;
 
-        int last_steps_1;
-        int last_steps_2;
+        double mBaseWidth;
+        double mStepsPerMeter;
 
-        double last_x;
-        double last_y;
-        double last_theta;
+        bool mOpenLoop;
+        bool mSwapMotors;
+        bool mInvertMotor1;
+        bool mInvertMotor2;
 
-        double base_width;
-        double steps_per_meter;
+        int8_t mTargetIndex;
 
-        bool swap_motors;
-        bool invert_motor_1;
-        bool invert_motor_2;
+        double mVarPosX;
+        double mVarPosY;
+        double mVarPosTheta;
 
-        double var_pos_x;
-        double var_pos_y;
-        double var_theta_z;
-
-        void twist_callback(const geometry_msgs::Twist &msg);
-
-        void encoder_callback(const roboclaw::RoboclawEncoderSteps &msg);
+        void twist_callback(const geometry_msgs::msg::Twist &msg);
+        void encoder_callback(const roboclaw::msg::EncoderSteps &msg);
     };
 
 }

@@ -24,37 +24,47 @@
 #ifndef PROJECT_ROBOCLAW_ROSCORE_H
 #define PROJECT_ROBOCLAW_ROSCORE_H
 
-#include "ros/ros.h"
-#include "ros/package.h"
+#include <chrono>
+#include <functional>
+#include <memory>
+#include <string>
+
+#include "rclcpp/rclcpp.hpp"
 
 #include "roboclaw_driver.h"
 
-#include "roboclaw/RoboclawEncoderSteps.h"
-#include "roboclaw/RoboclawMotorVelocity.h"
+#include "roboclaw/msg/encoder_steps.hpp"
+#include "roboclaw/msg/motor_velocity.hpp"
+#include "roboclaw/msg/motor_position.hpp"
+
+using namespace std::chrono_literals;
+using namespace std;
 
 namespace roboclaw {
 
-    class roboclaw_roscore {
+    class RoboclawCore : public rclcpp::Node 
+    {
     public:
-        roboclaw_roscore(ros::NodeHandle nh, ros::NodeHandle nh_private);
-        ~roboclaw_roscore();
-
-        void run();
+        RoboclawCore(string name);
+        ~RoboclawCore();
 
     private:
-        driver *roboclaw;
+        driver *mRoboclaw;
+        uint8_t mClawCnt;
 
-        std::map<int, unsigned char> roboclaw_mapping;
+        rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr mEncodersPub;
 
-        ros::NodeHandle nh;
-        ros::NodeHandle nh_private;
+        rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr mVelCmdSub;
+        rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr mPosCmdSub;
 
-        ros::Publisher encoder_pub;
-        ros::Subscriber velocity_sub;
+        rclcpp::TimerBase::SharedPtr mPubTimer;
 
-        ros::Time last_message;
+        // rclcpp::Time mLastVelCmd;
+        // rclcpp::Time mLastPosCmd;
 
-        void velocity_callback(const roboclaw::RoboclawMotorVelocity &msg);
+        void velocity_callback(const roboclaw::msg::MotorVelocity &msg);
+        void position_callback(const roboclaw::msg::MotorPosition &msg);
+        void timer_callback();
     };
 
 

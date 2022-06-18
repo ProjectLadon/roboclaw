@@ -21,16 +21,15 @@
         * DEALINGS IN THE SOFTWARE.
 */
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
 #include "roboclaw_roscore.h"
 
-int main(int argc, char **argv) {
-    ros::init(argc, argv, "roboclaw");
-    ros::NodeHandle nh, nh_private("~");
-
-    roboclaw::roboclaw_roscore node(nh, nh_private);
-    node.run();
+int main(int argc, char **argv) 
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<roboclaw::RoboclawCore>("roboclaw"));
+    rclcpp::shutdown();
 
     return 0;
 }

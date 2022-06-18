@@ -21,170 +21,183 @@
         * DEALINGS IN THE SOFTWARE.
 */
 
+#include "diffdrive_roscore.h"
+
 #include <cmath>
 #include <iostream>
 #include <string>
 
-#include "diffdrive_roscore.h"
-#include "roboclaw/RoboclawMotorVelocity.h"
-#include "geometry_msgs/Quaternion.h"
-#include "tf/transform_datatypes.h"
-#include "tf/transform_broadcaster.h"
+// #include "tf/transform_datatypes.h"
+// #include "tf/transform_broadcaster.h"
+
+using namespace std;
+using namespace std::chrono_literals;
+using std::placeholders::_1;
 
 namespace roboclaw {
 
-    diffdrive_roscore::diffdrive_roscore(ros::NodeHandle nh, ros::NodeHandle nh_private) {
+    DiffDriveCore::DiffDriveCore(string name) : Node(name)
+    {
+        // Declare the parameters
+        this->declare_parameter<float>("base_width",       1.0f);
+        this->declare_parameter<float>("steps_per_meter",  1000.0f);
+        this->declare_parameter<bool>("open_loop",         false);
+        this->declare_parameter<bool>("swap_motors",       true);
+        this->declare_parameter<bool>("invert_motor_1",    false);
+        this->declare_parameter<bool>("invert_motor_2",    false);
+        this->declare_parameter<float>("var_pos_x",        0.01);
+        this->declare_parameter<float>("var_pos_y",        0.01);
+        this->declare_parameter<float>("var_pos_theta",    0.01);
+        this->declare_parameter<int64_t>("target_index",   0);
 
-        this->nh = nh;
-        this->nh_private = nh_private;
+        // fetch parameters
+        this->get_parameter("base_width",       mBaseWidth);
+        this->get_parameter("steps_per_meter",  mStepsPerMeter);
+        this->get_parameter("open_loop",        mOpenLoop);
+        this->get_parameter("swap_motors",      mSwapMotors);
+        this->get_parameter("invert_motor_1",   mInvertMotor1);
+        this->get_parameter("invert_motor_2",   mInvertMotor2);
+        this->get_parameter("var_pos_x",        mVarPosX);
+        this->get_parameter("var_pos_y",        mVarPosY);
+        this->get_parameter("var_pos_theta",    mVarPosTheta);
+        this->get_parameter("target_index",     mTargetIndex);
 
-        odom_pub = nh.advertise<nav_msgs::Odometry>(std::string("odom"), 10);
-        motor_pub = nh.advertise<roboclaw::RoboclawMotorVelocity>(std::string("motor_cmd_vel"), 10);
+        // initialize internal state
+        mLastX      = 0.0f;
+        mLastSteps1 = 0;
+        mLastSteps2 = 0;
 
-        encoder_sub = nh.subscribe(std::string("motor_enc"), 10, &diffdrive_roscore::encoder_callback, this);
-        twist_sub = nh.subscribe(std::string("cmd_vel"), 10, &diffdrive_roscore::twist_callback, this);
-
-        last_theta = 0.0;
-        last_steps_1 = 0;
-        last_steps_2 = 0;
-
-        if(!nh_private.getParam("base_width", base_width)){
-            throw std::runtime_error("Must specify base_width!");
-        }
-        if(!nh_private.getParam("steps_per_meter", steps_per_meter)) {
-            throw std::runtime_error("Must specify steps_per_meter!");
-        }
-
-        if(!nh_private.getParam("swap_motors", swap_motors))
-            swap_motors = true;
-        if(!nh_private.getParam("invert_motor_1", invert_motor_1))
-            invert_motor_1 = false;
-        if(!nh_private.getParam("invert_motor_2", invert_motor_2))
-            invert_motor_2 = false;
-
-        if(!nh_private.getParam("var_pos_x", var_pos_x)){
-            var_pos_x = 0.01;
-        }
-        if(!nh_private.getParam("var_pos_y", var_pos_y)){
-            var_pos_y = 0.01;
-        }
-        if(!nh_private.getParam("var_theta_z", var_theta_z)){
-            var_theta_z = 0.01;
-        }
-
+        // create publishers and subscribers
+        mOdomPub    = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+        mMotorPub   = this->create_publisher<roboclaw::msg::MotorVelocity>("motor_cmd_vel", 10);
+        mEncSub     = this->create_subscription<roboclaw::msg::EncoderSteps>(
+                        "motor_enc", 10, bind(&DiffDriveCore::encoder_callback, this, _1));
+        mTwistSub   = this->create_subscription<geometry_msgs::msg::Twist>(
+                        "cmd_vel", 10, bind(&DiffDriveCore::twist_callback, this, _1));
     }
 
-    void diffdrive_roscore::twist_callback(const geometry_msgs::Twist &msg) {
+    void DiffDriveCore::twist_callback(const geometry_msgs::msg::Twist &msg) 
+    {
 
-        roboclaw::RoboclawMotorVelocity motor_vel;
-        motor_vel.index = 0;
+        auto motor_vel = roboclaw::msg::MotorVelocity();
+        motor_vel.index = mTargetIndex;
         motor_vel.mot1_vel_sps = 0;
         motor_vel.mot2_vel_sps = 0;
 
         // Linear
-        motor_vel.mot1_vel_sps += (int) (steps_per_meter * msg.linear.x);
-        motor_vel.mot2_vel_sps += (int) (steps_per_meter * msg.linear.x);
+        motor_vel.mot1_vel_sps += (int) (mStepsPerMeter * msg.linear.x);
+        motor_vel.mot2_vel_sps += (int) (mStepsPerMeter * msg.linear.x);
 
-        if(msg.linear.y > 0){
-            motor_vel.mot2_vel_sps += (int) (steps_per_meter * msg.linear.y);
-        }else if(msg.linear.y < 0){
-            motor_vel.mot1_vel_sps += (int) (steps_per_meter * msg.linear.y);
+        if(msg.linear.y > 0)
+        {
+            motor_vel.mot2_vel_sps += (int) (mStepsPerMeter * msg.linear.y);
+        }
+        else if(msg.linear.y < 0)
+        {
+            motor_vel.mot1_vel_sps += (int) (mStepsPerMeter * msg.linear.y);
         }
 
         // Angular
-        motor_vel.mot1_vel_sps += (int) -(steps_per_meter * msg.angular.z * base_width/2);
-        motor_vel.mot2_vel_sps += (int) (steps_per_meter * msg.angular.z * base_width/2);
+        motor_vel.mot1_vel_sps += (int) -(mStepsPerMeter * msg.angular.z * mBaseWidth/2);
+        motor_vel.mot2_vel_sps += (int) (mStepsPerMeter * msg.angular.z * mBaseWidth/2);
 
-        if (invert_motor_1)
+        if (mInvertMotor1)
+        {
             motor_vel.mot1_vel_sps = -motor_vel.mot1_vel_sps;
+            }
 
-        if (invert_motor_2)
+        if (mInvertMotor2)
+        {
             motor_vel.mot2_vel_sps = -motor_vel.mot2_vel_sps;
+        }
 
-        if (swap_motors){
+        if (mSwapMotors)
+        {
             int tmp = motor_vel.mot1_vel_sps;
             motor_vel.mot1_vel_sps = motor_vel.mot2_vel_sps;
             motor_vel.mot2_vel_sps = tmp;
         }
 
-        motor_pub.publish(motor_vel);
+        mMotorPub->publish(motor_vel);
     }
 
-    void diffdrive_roscore::encoder_callback(const roboclaw::RoboclawEncoderSteps &msg) {
+    void DiffDriveCore::encoder_callback(const roboclaw::msg::EncoderSteps &msg) {
 
-        static tf::TransformBroadcaster br;
+        // TODO: reimplement this at some point -- not required for what we're doing now.
 
-        int delta_1 = msg.mot1_enc_steps - last_steps_1;
-        int delta_2 = msg.mot2_enc_steps - last_steps_2;
+        // static tf::TransformBroadcaster br;
 
-        last_steps_1 = msg.mot1_enc_steps;
-        last_steps_2 = msg.mot2_enc_steps;
+        // int delta_1 = msg.mot1_enc_steps - last_steps_1;
+        // int delta_2 = msg.mot2_enc_steps - last_steps_2;
 
-        if (invert_motor_1)
-            delta_1 = -delta_1;
+        // last_steps_1 = msg.mot1_enc_steps;
+        // last_steps_2 = msg.mot2_enc_steps;
 
-        if (invert_motor_2)
-            delta_1 = -delta_2;
+        // if (invert_motor_1)
+        //     delta_1 = -delta_1;
 
-        if (swap_motors){
-            int tmp = delta_1;
-            delta_1 = delta_2;
-            delta_2 = tmp;
-        }
+        // if (invert_motor_2)
+        //     delta_1 = -delta_2;
 
-        double u_w = ((delta_1 + delta_2) / steps_per_meter) / 2.0;
-        double u_p = ((delta_2 - delta_1) / steps_per_meter);
+        // if (swap_motors){
+        //     int tmp = delta_1;
+        //     delta_1 = delta_2;
+        //     delta_2 = tmp;
+        // }
 
-        double delta_x = u_w * cos(last_theta);
-        double delta_y = u_w * sin(last_theta);
-        double delta_theta = u_p / base_width;
+        // double u_w = ((delta_1 + delta_2) / mStepsPerMeter) / 2.0;
+        // double u_p = ((delta_2 - delta_1) / mStepsPerMeter);
 
-        double cur_x = last_x + delta_x;
-        double cur_y = last_y + delta_y;
-        double cur_theta = last_theta + delta_theta;
+        // double delta_x = u_w * cos(last_theta);
+        // double delta_y = u_w * sin(last_theta);
+        // double delta_theta = u_p / mBaseWidth;
 
-        nav_msgs::Odometry odom;
+        // double cur_x = last_x + delta_x;
+        // double cur_y = last_y + delta_y;
+        // double cur_theta = last_theta + delta_theta;
 
-        odom.header.frame_id = "odom";
-        odom.child_frame_id = "base_link";
+        // nav_msgs::Odometry odom;
 
-        // Time
-        odom.header.stamp = ros::Time::now();
+        // odom.header.frame_id = "odom";
+        // odom.child_frame_id = "base_link";
 
-        // Position
-        odom.pose.pose.position.x = cur_x;
-        odom.pose.pose.position.y = cur_y;
+        // // Time
+        // odom.header.stamp = ros::Time::now();
 
-        // Velocity
-        odom.twist.twist.linear.x = cur_x - last_x;
-        odom.twist.twist.linear.y = cur_y - last_y;
-        odom.twist.twist.angular.z = cur_theta - last_theta;
+        // // Position
+        // odom.pose.pose.position.x = cur_x;
+        // odom.pose.pose.position.y = cur_y;
 
-        tf::Quaternion quaternion = tf::createQuaternionFromRPY(0.0, 0.0, cur_theta);
-        odom.pose.pose.orientation.w = quaternion.w();
-        odom.pose.pose.orientation.x = quaternion.x();
-        odom.pose.pose.orientation.y = quaternion.y();
-        odom.pose.pose.orientation.z = quaternion.z();
+        // // Velocity
+        // odom.twist.twist.linear.x = cur_x - last_x;
+        // odom.twist.twist.linear.y = cur_y - last_y;
+        // odom.twist.twist.angular.z = cur_theta - last_theta;
 
-        // Pos_x Variance
-        odom.pose.covariance[0] = var_pos_x;
+        // tf::Quaternion quaternion = tf::createQuaternionFromRPY(0.0, 0.0, cur_theta);
+        // odom.pose.pose.orientation.w = quaternion.w();
+        // odom.pose.pose.orientation.x = quaternion.x();
+        // odom.pose.pose.orientation.y = quaternion.y();
+        // odom.pose.pose.orientation.z = quaternion.z();
 
-        // Pos_y Variance
-        odom.pose.covariance[7] = var_pos_y;
+        // // Pos_x Variance
+        // odom.pose.covariance[0] = var_pos_x;
 
-        // Theta_z Variance
-        odom.pose.covariance[35] = var_theta_z;
+        // // Pos_y Variance
+        // odom.pose.covariance[7] = var_pos_y;
 
-        tf::Transform transform;
-        transform.setOrigin(tf::Vector3(last_x, last_y, 0.0));
-        transform.setRotation(tf::createQuaternionFromRPY(0.0, 0.0, cur_theta));
-        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link"));
+        // // Theta_z Variance
+        // odom.pose.covariance[35] = var_theta_z;
 
-        odom_pub.publish(odom);
+        // tf::Transform transform;
+        // transform.setOrigin(tf::Vector3(last_x, last_y, 0.0));
+        // transform.setRotation(tf::createQuaternionFromRPY(0.0, 0.0, cur_theta));
+        // br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link"));
 
-        last_x = cur_x;
-        last_y = cur_y;
-        last_theta = cur_theta;
+        // odom_pub.publish(odom);
+
+        // last_x = cur_x;
+        // last_y = cur_y;
+        // last_theta = cur_theta;
 
     }
 

@@ -21,16 +21,13 @@
         * DEALINGS IN THE SOFTWARE.
 */
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
 #include "diffdrive_roscore.h"
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "diffdrive");
-    ros::NodeHandle nh, nh_private("~");
-
-    roboclaw::diffdrive_roscore node(nh, nh_private);
-    ros::spin();
-
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<roboclaw::DiffDriveCore>("diff_drive"));
+    rclcpp::shutdown();
     return 0;
 }

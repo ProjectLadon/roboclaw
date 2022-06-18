@@ -25,115 +25,123 @@
 
 #include <map>
 #include <string>
-
 #include <iostream>
 
-namespace roboclaw {
+using namespace std;
+using namespace std::chrono_literals;
+using std::placeholders::_1;
 
-    roboclaw_roscore::roboclaw_roscore(ros::NodeHandle nh, ros::NodeHandle nh_private) {
+namespace roboclaw 
+{
 
+    RoboclawCore::RoboclawCore(string name) : Node(name)
+    {
+        // Declare the parameters
+        this->declare_parameter<std::string>("serial_port");    // serial device name
+        this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
+        this->declare_parameter<int64_t>("num_claws", 1);       // Number of roboclaws connected
+
+        // Declare a couple of variables...
         std::string serial_port;
-        int baudrate;
-        int num_roboclaws;
+        int64_t baudrate;
 
-        this->nh = nh;
-        this->nh_private = nh_private;
-
-        if(!nh_private.getParam("serial_port", serial_port))
+        // Read the parameters in, throw and error if the serial port name is short
+        this->get_parameter("serial_port", serial_port);
+        if(serial_port.size() < 1)
+        {
             throw std::runtime_error("Must specify serial port");
+        }
+        this->get_parameter("baudrate", baudrate);
+        this->get_parameter("num_roboclaws", mClawCnt);
 
-        if(!nh_private.getParam("baudrate", baudrate))
-            baudrate = (int) driver::DEFAULT_BAUDRATE;
-        if(!nh_private.getParam("roboclaws", num_roboclaws))
-            num_roboclaws = 1;
+        // initialize the driver
+        mRoboclaw = new driver(serial_port, baudrate);
 
-        roboclaw_mapping = std::map<int, unsigned char>();
-
-        // Create address map
-        if (num_roboclaws > 1) {
-
-            for (int r = 0; r < num_roboclaws; r++)
-                roboclaw_mapping.insert(std::pair<int, unsigned char>(r, driver::BASE_ADDRESS + r));
-
-        } else {
-            num_roboclaws = 1;
-
-            roboclaw_mapping.insert(std::pair<int, unsigned char>(0, driver::BASE_ADDRESS));
+        // zero all the encoders
+        for (int r = 0; r < mClawCnt; r++)
+        {
+            mRoboclaw->reset_encoders(driver::BASE_ADDRESS + r);
         }
 
-        roboclaw = new driver(serial_port, baudrate);
+        // create publishers and subscribers
+        mEncodersPub = this->create_publisher<roboclaw::msg::EncoderSteps>(
+            "posn_out", 10);
+        mVelCmdSub = this->create_subscription<roboclaw::msg::MotorVelocity>(
+            "motor_vel_cmd", 10, bind(&RoboclawCore::velocity_callback, this, _1));
+        mPosCmdSub = this->create_subscription<roboclaw::msg::MotorPosition>(
+            "motor_pos_cmd", 10, bind(&RoboclawCore::position_callback, this, _1));
 
-        for (int r = 0; r < roboclaw_mapping.size(); r++)
-            roboclaw->reset_encoders(roboclaw_mapping[r]);
-
-        encoder_pub = nh.advertise<roboclaw::RoboclawEncoderSteps>(std::string("motor_enc"), 10);
-        velocity_sub = nh.subscribe(std::string("motor_cmd_vel"), 10, &roboclaw_roscore::velocity_callback, this);
+        // create periodic callback
+        mPubTimer = this->create_wall_timer(
+            100ms, bind(&RoboclawCore::timer_callback, this));
 
     }
 
-    roboclaw_roscore::~roboclaw_roscore() {
-        for (int r = 0; r < roboclaw_mapping.size(); r++)
-            roboclaw->set_duty(roboclaw_mapping[r], std::pair<int, int>(0, 0));
+    RoboclawCore::~RoboclawCore() {
+        for (int r = 0; r < mClawCnt; r++)
+            mRoboclaw->set_duty(driver::BASE_ADDRESS + r, std::pair<int, int>(0, 0));
     }
 
-    void roboclaw_roscore::velocity_callback(const roboclaw::RoboclawMotorVelocity &msg) {
-        last_message = ros::Time::now();
+    void RoboclawCore::velocity_callback(const roboclaw::msg::MotorVelocity &msg) {
+        // mLastVelCmd = rclcpp::Time::now(RCL_ROS_TIME);
 
-        try {
-            roboclaw->set_velocity(roboclaw_mapping[msg.index], std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
-        } catch(roboclaw::crc_exception &e){
-            ROS_ERROR("RoboClaw CRC error during set velocity!");
-        } catch(timeout_exception &e){
-            ROS_ERROR("RoboClaw timout during set velocity!");
+        try 
+        {
+            mRoboclaw->set_velocity(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+        } 
+        catch(roboclaw::crc_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during set velocity!");
+        } 
+        catch(timeout_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timout during set velocity!");
         }
 
     }
 
-    void roboclaw_roscore::run() {
+    void RoboclawCore::position_callback(const roboclaw::msg::MotorPosition &msg) {
+        // mLastPosCmd = rclcpp::Time::now();
 
-        last_message = ros::Time::now();
+        try 
+        {
+            // mRoboclaw->set_position(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+        } 
+        catch(roboclaw::crc_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during set position!");
+        } 
+        catch(timeout_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timout during set set position!");
+        }
 
-        ros::Rate update_rate(10);
+    }
 
-        while (ros::ok()) {
+    void RoboclawCore::timer_callback() {
 
-            ros::spinOnce();
-            update_rate.sleep();
+        auto msg = roboclaw::msg::EncoderSteps();
 
-            // Publish encoders
-            for (int r = 0; r < roboclaw_mapping.size(); r++) {
-                std::pair<int, int> encs = std::pair<int, int>(0, 0);
-                try {
-                    encs = roboclaw->get_encoders(roboclaw_mapping[r]);
-                } catch(roboclaw::crc_exception &e){
-                    ROS_ERROR("RoboClaw CRC error during getting encoders!");
-                    continue;
-                } catch(timeout_exception &e){
-                    ROS_ERROR("RoboClaw timout during getting encoders!");
-                    continue;
-                }
-
-                RoboclawEncoderSteps enc_steps;
-                enc_steps.index = r;
-                enc_steps.mot1_enc_steps = encs.first;
-                enc_steps.mot2_enc_steps = encs.second;
-                encoder_pub.publish(enc_steps);
-
+        // Publish encoders
+        for (int r = 0; r < mClawCnt; r++) {
+            try 
+            {
+                auto encs = mRoboclaw->get_encoders(driver::BASE_ADDRESS + r);
+                msg.index = r;
+                msg.mot1_enc_steps = encs.first;
+                msg.mot2_enc_steps = encs.second;
+                mEncodersPub->publish(msg);
+            } 
+            catch(roboclaw::crc_exception &e)
+            {
+                RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during getting encoders!");
+                continue;
+            } 
+            catch(timeout_exception &e)
+            {
+                RCLCPP_ERROR(this->get_logger(), "RoboClaw timout during getting encoders!");
+                continue;
             }
-
-            if (ros::Time::now() - last_message > ros::Duration(5)) {
-                for (int r = 0; r < roboclaw_mapping.size(); r++) {
-                    try {
-                        roboclaw->set_duty(roboclaw_mapping[r], std::pair<int, int>(0, 0));
-                    } catch(roboclaw::crc_exception &e){
-                        ROS_ERROR("RoboClaw CRC error setting duty cyrcle!");
-                    } catch(timeout_exception &e) {
-                        ROS_ERROR("RoboClaw timout during setting duty cycle!");
-                    }
-                }
-            }
-
         }
     }
-
 }

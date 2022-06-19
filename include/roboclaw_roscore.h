@@ -36,6 +36,7 @@
 #include "roboclaw/msg/encoder_steps.hpp"
 #include "roboclaw/msg/motor_velocity.hpp"
 #include "roboclaw/msg/motor_position.hpp"
+#include "roboclaw/msg/motor_volts_amps.hpp"
 
 using namespace std::chrono_literals;
 using namespace std;
@@ -51,8 +52,10 @@ namespace roboclaw {
     private:
         driver *mRoboclaw;
         uint8_t mClawCnt;
+        uint8_t mOpenCnt;
 
         rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr mEncodersPub;
+        rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr mVoltsAmpsPub;
 
         rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr mVelCmdSub;
         rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr mPosCmdSub;

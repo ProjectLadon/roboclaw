@@ -40,6 +40,7 @@ namespace roboclaw
         this->declare_parameter<std::string>("serial_port");    // serial device name
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int64_t>("num_claws", 1);       // Number of roboclaws connected
+        this->declare_parameter<int64_t>("num_openloop", 0);    // Number of open loop roboclaws
 
         // Declare a couple of variables...
         std::string serial_port;
@@ -53,6 +54,7 @@ namespace roboclaw
         }
         this->get_parameter("baudrate", baudrate);
         this->get_parameter("num_roboclaws", mClawCnt);
+        this->get_parameter("num_openloop", mOpenCnt);
 
         // initialize the driver
         mRoboclaw = new driver(serial_port, baudrate);
@@ -66,6 +68,9 @@ namespace roboclaw
         // create publishers and subscribers
         mEncodersPub = this->create_publisher<roboclaw::msg::EncoderSteps>(
             "posn_out", 10);
+        mVoltsAmpsPub = this->create_publisher<roboclaw::msg::MotorVoltsAmps>(
+            "volts_amps_out", 10);
+
         mVelCmdSub = this->create_subscription<roboclaw::msg::MotorVelocity>(
             "motor_vel_cmd", 10, bind(&RoboclawCore::velocity_callback, this, _1));
         mPosCmdSub = this->create_subscription<roboclaw::msg::MotorPosition>(
@@ -87,7 +92,14 @@ namespace roboclaw
 
         try 
         {
-            mRoboclaw->set_velocity(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+            if (msg.index < mOpenCnt)
+            {
+                mRoboclaw->set_duty(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+            }
+            else
+            {
+                mRoboclaw->set_velocity(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+            }
         } 
         catch(roboclaw::crc_exception &e)
         {
@@ -105,7 +117,7 @@ namespace roboclaw
 
         try 
         {
-            // mRoboclaw->set_position(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+            mRoboclaw->set_position(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_pos_steps, msg.mot2_pos_steps));
         } 
         catch(roboclaw::crc_exception &e)
         {
@@ -120,17 +132,29 @@ namespace roboclaw
 
     void RoboclawCore::timer_callback() {
 
-        auto msg = roboclaw::msg::EncoderSteps();
+        
 
         // Publish encoders
         for (int r = 0; r < mClawCnt; r++) {
             try 
             {
+                auto msg_encs = roboclaw::msg::EncoderSteps();
+                auto msg_amps = roboclaw::msg::MotorVoltsAmps();
                 auto encs = mRoboclaw->get_encoders(driver::BASE_ADDRESS + r);
-                msg.index = r;
-                msg.mot1_enc_steps = encs.first;
-                msg.mot2_enc_steps = encs.second;
-                mEncodersPub->publish(msg);
+                auto amps = mRoboclaw->get_motor_currents(driver::BASE_ADDRESS + r);
+                
+                msg_encs.index = r;
+                msg_encs.mot1_enc_steps = encs.first;
+                msg_encs.mot2_enc_steps = encs.second;
+
+                msg_amps.index = r;
+                msg_amps.motor_volts = mRoboclaw->get_motor_voltage(driver::BASE_ADDRESS + r);
+                msg_amps.logic_volts = mRoboclaw->get_logic_voltage(driver::BASE_ADDRESS + r);
+                msg_amps.mot1_amps = amps.first;
+                msg_amps.mot2_amps = amps.second;
+
+                mEncodersPub->publish(msg_encs);
+                mVoltsAmpsPub->publish(msg_amps);
             } 
             catch(roboclaw::crc_exception &e)
             {

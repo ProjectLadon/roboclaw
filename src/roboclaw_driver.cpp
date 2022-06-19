@@ -29,19 +29,24 @@
 
 namespace roboclaw {
 
-    unsigned char driver::BASE_ADDRESS = 128;
-    unsigned int driver::DEFAULT_BAUDRATE = 115200;
+    const uint8_t driver::BASE_ADDRESS      = 0x80;
+    const uint32_t driver::DEFAULT_BAUDRATE = 115200;
+    const float driver::AMPS_SCALE          = 100.0f;
+    const float driver::VOLTS_SCALE         = 10.0f;
 
-    driver::driver(std::string port, unsigned int baudrate) {
+    driver::driver(std::string port, unsigned int baudrate) 
+    {
         serial = std::shared_ptr<TimeoutSerial>(new TimeoutSerial(port, baudrate));
         serial->setTimeout(boost::posix_time::milliseconds(200));
     }
 
-    void driver::crc16_reset() {
+    void driver::crc16_reset() 
+    {
         crc = 0;
     }
 
-    uint16_t driver::crc16(uint8_t *packet, size_t nBytes) {
+    uint16_t driver::crc16(uint8_t *packet, size_t nBytes) 
+    {
 
         for (size_t byte = 0; byte < nBytes; byte++) {
 
@@ -58,17 +63,18 @@ namespace roboclaw {
         return crc;
     }
 
-    size_t driver::txrx(unsigned char address,
-                        unsigned char command,
-                        unsigned char *tx_data,
+    size_t driver::txrx(uint8_t address,
+                        uint8_t command,
+                        uint8_t *tx_data,
                         size_t tx_length,
-                        unsigned char *rx_data,
+                        uint8_t *rx_data,
                         size_t rx_length,
-                        bool tx_crc, bool rx_crc) {
+                        bool tx_crc, bool rx_crc) 
+    {
 
         boost::mutex::scoped_lock lock(serial_mutex);
 
-        std::vector<unsigned char> packet;
+        std::vector<uint8_t> packet;
 
         if (tx_crc)
             packet.resize(tx_length + 4);
@@ -91,8 +97,8 @@ namespace roboclaw {
             unsigned int crc = crc16(&packet[2], tx_length);
 
             // RoboClaw expects big endian / MSB first
-            packet[tx_length + 2] = (unsigned char) ((crc >> 8) & 0xFF);
-            packet[tx_length + 2 + 1] = (unsigned char) (crc & 0xFF);
+            packet[tx_length + 2] = (uint8_t) ((crc >> 8) & 0xFF);
+            packet[tx_length + 2 + 1] = (uint8_t) (crc & 0xFF);
 
         }
 
@@ -110,7 +116,7 @@ namespace roboclaw {
 
         size_t bytes_received = response_vector.size();
 
-        unsigned char* response = (unsigned char*) &response_vector[0];
+        uint8_t* response = (uint8_t*) &response_vector[0];
 
         if (bytes_received != want_bytes)
             throw timeout_exception("Timeout reading from RoboClaw");
@@ -139,11 +145,12 @@ namespace roboclaw {
             return bytes_received - 2;
     }
 
-    std::string driver::get_version(unsigned char address) {
+    std::string driver::get_version(uint8_t address) 
+    {
 
-        unsigned char rx_buffer[48];
+        uint8_t rx_buffer[48];
 
-        txrx(address, 21, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)StatusCmds::ReadFirmwareVersion, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         std::string version = std::string(reinterpret_cast< char const * >(rx_buffer));
         trim(version);
@@ -152,11 +159,12 @@ namespace roboclaw {
 
     }
 
-    std::pair<int, int> driver::get_encoders(unsigned char address) {
+    std::pair<int, int> driver::get_encoders(uint8_t address) 
+    {
 
-        unsigned char rx_buffer[5];
+        uint8_t rx_buffer[5];
 
-        txrx(address, 16, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)EncoderCmds::ReadPosM1, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         uint32_t e1 = 0;
 
@@ -165,7 +173,7 @@ namespace roboclaw {
         e1 += rx_buffer[2] << 8;
         e1 += rx_buffer[3];
 
-        txrx(address, 17, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)EncoderCmds::ReadPosM2, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         uint32_t e2 = 0;
 
@@ -177,11 +185,12 @@ namespace roboclaw {
         return std::pair<int, int>((int) (int32_t) e1, (int) (int32_t) e2);
     }
 
-    std::pair<int, int> driver::get_velocity(unsigned char address) {
+    std::pair<int, int> driver::get_velocity(uint8_t address) 
+    {
 
-        unsigned char rx_buffer[5];
+        uint8_t rx_buffer[5];
 
-        txrx(address, 18, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)EncoderCmds::ReadSpdM1, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         uint32_t e1 = 0;
 
@@ -190,7 +199,7 @@ namespace roboclaw {
         e1 += rx_buffer[2] << 8;
         e1 += rx_buffer[3];
 
-        txrx(address, 19, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)EncoderCmds::ReadSpdM2, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         uint32_t e2 = 0;
 
@@ -202,41 +211,110 @@ namespace roboclaw {
         return std::pair<int, int>((int) (int32_t) e1, (int) (int32_t) e2);
     }
 
-    void driver::reset_encoders(unsigned char address) {
-        unsigned char rx_buffer[1];
-        txrx(address, 20, nullptr, 0, rx_buffer, sizeof(rx_buffer), true, false);
+    std::pair<float, float> driver::get_motor_currents(uint8_t address)
+    {
+        uint8_t rx_buffer[4];
+
+        txrx(address, (uint8_t)StatusCmds::ReadMotorCurrents, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        uint16_t e1 = 0;
+        uint16_t e2 = 0;
+
+        e1 += rx_buffer[0] << 8;
+        e1 += rx_buffer[1];
+        e2 += rx_buffer[2] << 8;
+        e2 += rx_buffer[3];
+        
+        return std::pair<float, float>(((float)e1)/AMPS_SCALE, ((float)e2)/AMPS_SCALE);
     }
 
-    void driver::set_velocity(unsigned char address, std::pair<int, int> speed) {
-        unsigned char rx_buffer[1];
-        unsigned char tx_buffer[8];
+    float driver::get_logic_voltage(uint8_t address)
+    {
+        uint8_t rx_buffer[2];
 
-        // RoboClaw expects big endian / MSB first
-        tx_buffer[0] = (unsigned char) ((speed.first >> 24) & 0xFF);
-        tx_buffer[1] = (unsigned char) ((speed.first >> 16) & 0xFF);
-        tx_buffer[2] = (unsigned char) ((speed.first >> 8) & 0xFF);
-        tx_buffer[3] = (unsigned char) (speed.first & 0xFF);
+        txrx(address, (uint8_t)StatusCmds::ReadLogicVoltage, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
-        tx_buffer[4] = (unsigned char) ((speed.second >> 24) & 0xFF);
-        tx_buffer[5] = (unsigned char) ((speed.second >> 16) & 0xFF);
-        tx_buffer[6] = (unsigned char) ((speed.second >> 8) & 0xFF);
-        tx_buffer[7] = (unsigned char) (speed.second & 0xFF);
+        uint16_t e1 = 0;
 
-        txrx(address, 37, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        e1 += rx_buffer[0] << 8;
+        e1 += rx_buffer[1];
+
+        return (float)e1/VOLTS_SCALE;
+
     }
 
-    void driver::set_duty(unsigned char address, std::pair<int, int> duty) {
-        unsigned char rx_buffer[1];
-        unsigned char tx_buffer[4];
+    float driver::get_motor_voltage(uint8_t address)
+    {
+        uint8_t rx_buffer[2];
+
+        txrx(address, (uint8_t)StatusCmds::ReadMainVoltage, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        uint16_t e1 = 0;
+
+        e1 += rx_buffer[0] << 8;
+        e1 += rx_buffer[1];
+
+        return (float)e1/VOLTS_SCALE;
+
+    }
+
+    void driver::reset_encoders(uint8_t address) 
+    {
+        uint8_t rx_buffer[1];
+        txrx(address, (uint8_t)EncoderCmds::ResetAll, nullptr, 0, rx_buffer, sizeof(rx_buffer), true, false);
+    }
+
+    void driver::set_velocity(uint8_t address, std::pair<int, int> speed) 
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[8];
 
         // RoboClaw expects big endian / MSB first
-        tx_buffer[0] = (unsigned char) ((duty.first >> 8) & 0xFF);
-        tx_buffer[1] = (unsigned char) (duty.first & 0xFF);
+        tx_buffer[0] = (uint8_t) ((speed.first >> 24) & 0xFF);
+        tx_buffer[1] = (uint8_t) ((speed.first >> 16) & 0xFF);
+        tx_buffer[2] = (uint8_t) ((speed.first >> 8) & 0xFF);
+        tx_buffer[3] = (uint8_t) (speed.first & 0xFF);
 
-        tx_buffer[2] = (unsigned char) ((duty.second >> 8) & 0xFF);
-        tx_buffer[3] = (unsigned char) (duty.second & 0xFF);
+        tx_buffer[4] = (uint8_t) ((speed.second >> 24) & 0xFF);
+        tx_buffer[5] = (uint8_t) ((speed.second >> 16) & 0xFF);
+        tx_buffer[6] = (uint8_t) ((speed.second >> 8) & 0xFF);
+        tx_buffer[7] = (uint8_t) (speed.second & 0xFF);
 
-        txrx(address, 34, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        txrx(address, (uint8_t)AdvMotorControlCmds::SetSpdM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+    }
+
+    void driver::set_position(uint8_t address, std::pair<int, int> position) 
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[8];
+
+        // RoboClaw expects big endian / MSB first
+        tx_buffer[0] = (uint8_t) ((position.first >> 24) & 0xFF);
+        tx_buffer[1] = (uint8_t) ((position.first >> 16) & 0xFF);
+        tx_buffer[2] = (uint8_t) ((position.first >> 8) & 0xFF);
+        tx_buffer[3] = (uint8_t) (position.first & 0xFF);
+
+        tx_buffer[4] = (uint8_t) ((position.second >> 24) & 0xFF);
+        tx_buffer[5] = (uint8_t) ((position.second >> 16) & 0xFF);
+        tx_buffer[6] = (uint8_t) ((position.second >> 8) & 0xFF);
+        tx_buffer[7] = (uint8_t) (position.second & 0xFF);
+
+        txrx(address, (uint8_t)AdvMotorControlCmds::SetPosM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+    }
+
+    void driver::set_duty(uint8_t address, std::pair<int, int> duty) 
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[4];
+
+        // RoboClaw expects big endian / MSB first
+        tx_buffer[0] = (uint8_t) ((duty.first >> 8) & 0xFF);
+        tx_buffer[1] = (uint8_t) (duty.first & 0xFF);
+
+        tx_buffer[2] = (uint8_t) ((duty.second >> 8) & 0xFF);
+        tx_buffer[3] = (uint8_t) (duty.second & 0xFF);
+
+        txrx(address, (uint8_t)AdvMotorControlCmds::SetDutyM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
     }
 
 }

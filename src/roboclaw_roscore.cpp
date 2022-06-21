@@ -37,7 +37,7 @@ namespace roboclaw
     RoboclawCore::RoboclawCore(string name) : Node(name)
     {
         // Declare the parameters
-        this->declare_parameter<std::string>("serial_port");    // serial device name
+        this->declare_parameter<std::string>("serial_port", "");    // serial device name
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int64_t>("num_claws", 1);       // Number of roboclaws connected
         this->declare_parameter<int64_t>("num_openloop", 0);    // Number of open loop roboclaws
@@ -131,8 +131,6 @@ namespace roboclaw
     }
 
     void RoboclawCore::timer_callback() {
-
-        
 
         // Publish encoders
         for (int r = 0; r < mClawCnt; r++) {

@@ -36,6 +36,7 @@
 #include "roboclaw/msg/encoder_steps.hpp"
 #include "roboclaw/msg/motor_velocity.hpp"
 #include "roboclaw/msg/motor_position.hpp"
+#include "roboclaw/msg/motor_position_single.hpp"
 #include "roboclaw/msg/motor_volts_amps.hpp"
 
 using namespace std::chrono_literals;
@@ -59,6 +60,7 @@ namespace roboclaw {
 
         rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr mVelCmdSub;
         rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr mPosCmdSub;
+        rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr mPosCmdSingleSub;
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
@@ -67,6 +69,7 @@ namespace roboclaw {
 
         void velocity_callback(const roboclaw::msg::MotorVelocity &msg);
         void position_callback(const roboclaw::msg::MotorPosition &msg);
+        void position_single_callback(const roboclaw::msg::MotorPositionSingle &msg);
         void timer_callback();
     };
 

@@ -1,4 +1,4 @@
-int32 index
+byte index
 float32 motor_volts
 float32 logic_volts
 float32 mot1_amps

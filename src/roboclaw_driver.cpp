@@ -301,6 +301,27 @@ namespace roboclaw {
 
         txrx(address, (uint8_t)AdvMotorControlCmds::SetPosM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
     }
+        
+    void driver::set_position_single(uint8_t address, uint8_t channel, int position)
+{
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[4];
+
+        // RoboClaw expects big endian / MSB first
+        tx_buffer[0] = (uint8_t) ((position >> 24) & 0xFF);
+        tx_buffer[1] = (uint8_t) ((position >> 16) & 0xFF);
+        tx_buffer[2] = (uint8_t) ((position >> 8) & 0xFF);
+        tx_buffer[3] = (uint8_t) (position & 0xFF);
+
+        if (channel == 1)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetPosM1, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
+        else if (channel == 2)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetPosM2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
+    }
 
     void driver::set_duty(uint8_t address, std::pair<int, int> duty) 
     {

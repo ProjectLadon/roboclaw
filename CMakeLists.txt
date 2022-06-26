@@ -34,6 +34,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorVelocity.msg"
         "msg/EncoderSteps.msg"
         "msg/MotorPosition.msg"
+        "msg/MotorPositionSingle.msg"
         "msg/MotorVoltsAmps.msg"
 )
 

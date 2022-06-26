@@ -87,7 +87,8 @@ namespace roboclaw
             mRoboclaw->set_duty(driver::BASE_ADDRESS + r, std::pair<int, int>(0, 0));
     }
 
-    void RoboclawCore::velocity_callback(const roboclaw::msg::MotorVelocity &msg) {
+    void RoboclawCore::velocity_callback(const roboclaw::msg::MotorVelocity &msg) 
+    {
         // mLastVelCmd = rclcpp::Time::now(RCL_ROS_TIME);
 
         try 
@@ -112,12 +113,31 @@ namespace roboclaw
 
     }
 
-    void RoboclawCore::position_callback(const roboclaw::msg::MotorPosition &msg) {
+    void RoboclawCore::position_callback(const roboclaw::msg::MotorPosition &msg) 
+    {
         // mLastPosCmd = rclcpp::Time::now();
 
         try 
         {
             mRoboclaw->set_position(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_pos_steps, msg.mot2_pos_steps));
+        } 
+        catch(roboclaw::crc_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during set position!");
+        } 
+        catch(timeout_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timout during set set position!");
+        }
+    }
+
+    void RoboclawCore::position_single_callback(const roboclaw::msg::MotorPositionSingle &msg) 
+    {
+        // mLastPosCmd = rclcpp::Time::now();
+
+        try 
+        {
+            mRoboclaw->set_position_single(driver::BASE_ADDRESS + msg.index, msg.channel, msg.mot_pos_steps);
         } 
         catch(roboclaw::crc_exception &e)
         {

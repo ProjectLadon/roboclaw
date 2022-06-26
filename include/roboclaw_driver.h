@@ -50,6 +50,8 @@ namespace roboclaw {
 
         void set_position(uint8_t address, std::pair<int, int> position);
 
+        void set_position_single(uint8_t address, uint8_t channel, int position);
+
         void reset_encoders(uint8_t address);
 
         float get_logic_voltage(uint8_t address);

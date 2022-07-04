@@ -34,7 +34,9 @@
 #include "roboclaw_driver.h"
 
 #include "roboclaw/msg/encoder_steps.hpp"
+#include "roboclaw/msg/motor_duty_single.hpp"
 #include "roboclaw/msg/motor_velocity.hpp"
+#include "roboclaw/msg/motor_velocity_single.hpp"
 #include "roboclaw/msg/motor_position.hpp"
 #include "roboclaw/msg/motor_position_single.hpp"
 #include "roboclaw/msg/motor_volts_amps.hpp"
@@ -53,21 +55,21 @@ namespace roboclaw {
     private:
         driver *mRoboclaw;
         uint8_t mClawCnt;
-        uint8_t mOpenCnt;
 
         rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr mEncodersPub;
         rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr mVoltsAmpsPub;
 
+        rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr mDutyCmdSingleSub;
         rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr mVelCmdSub;
+        rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr mVelCmdSingleSub;
         rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr mPosCmdSub;
         rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr mPosCmdSingleSub;
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
-        // rclcpp::Time mLastVelCmd;
-        // rclcpp::Time mLastPosCmd;
-
+        void duty_single_callback(const roboclaw::msg::MotorDutySingle &msg);
         void velocity_callback(const roboclaw::msg::MotorVelocity &msg);
+        void velocity_single_callback(const roboclaw::msg::MotorVelocitySingle &msg);
         void position_callback(const roboclaw::msg::MotorPosition &msg);
         void position_single_callback(const roboclaw::msg::MotorPositionSingle &msg);
         void timer_callback();

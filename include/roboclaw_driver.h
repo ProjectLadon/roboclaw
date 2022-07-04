@@ -46,7 +46,11 @@ namespace roboclaw {
 
         void set_velocity(uint8_t address, std::pair<int, int> speed);
 
+        void set_velocity_single(uint8_t address, uint8_t channel, int speed);
+
         void set_duty(uint8_t address, std::pair<int, int> duty);
+
+        void set_duty_single(uint8_t address, uint8_t channel, int duty);
 
         void set_position(uint8_t address, std::pair<int, int> position);
 

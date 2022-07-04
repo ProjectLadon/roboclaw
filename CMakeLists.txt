@@ -32,6 +32,8 @@ include_directories(
 ## Generate messages in the 'msg' folder
 rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorVelocity.msg"
+        "msg/MotorVelocitySingle.msg"
+        "msg/MotorDutySingle.msg"
         "msg/EncoderSteps.msg"
         "msg/MotorPosition.msg"
         "msg/MotorPositionSingle.msg"

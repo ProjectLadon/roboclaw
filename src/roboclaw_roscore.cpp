@@ -40,7 +40,6 @@ namespace roboclaw
         this->declare_parameter<std::string>("serial_port", "");    // serial device name
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int64_t>("num_claws", 1);       // Number of roboclaws connected
-        this->declare_parameter<int64_t>("num_openloop", 0);    // Number of open loop roboclaws
 
         // Declare a couple of variables...
         std::string serial_port;
@@ -54,7 +53,6 @@ namespace roboclaw
         }
         this->get_parameter("baudrate", baudrate);
         this->get_parameter("num_roboclaws", mClawCnt);
-        this->get_parameter("num_openloop", mOpenCnt);
 
         // initialize the driver
         mRoboclaw = new driver(serial_port, baudrate);
@@ -67,14 +65,20 @@ namespace roboclaw
 
         // create publishers and subscribers
         mEncodersPub = this->create_publisher<roboclaw::msg::EncoderSteps>(
-            "posn_out", 10);
+            "~/posn_out", 10);
         mVoltsAmpsPub = this->create_publisher<roboclaw::msg::MotorVoltsAmps>(
-            "volts_amps_out", 10);
+            "~/volts_amps_out", 10);
 
         mVelCmdSub = this->create_subscription<roboclaw::msg::MotorVelocity>(
-            "motor_vel_cmd", 10, bind(&RoboclawCore::velocity_callback, this, _1));
+            "~/motor_vel_cmd", 10, bind(&RoboclawCore::velocity_callback, this, _1));
+        mVelCmdSingleSub = this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+            "~/motor_vel_single_cmd", 10, bind(&RoboclawCore::velocity_single_callback, this, _1));
         mPosCmdSub = this->create_subscription<roboclaw::msg::MotorPosition>(
-            "motor_pos_cmd", 10, bind(&RoboclawCore::position_callback, this, _1));
+            "~/motor_pos_cmd", 10, bind(&RoboclawCore::position_callback, this, _1));
+        mPosCmdSingleSub = this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+            "~/motor_pos_single_cmd", 10, bind(&RoboclawCore::position_single_callback, this, _1));
+        mDutyCmdSingleSub = this->create_subscription<roboclaw::msg::MotorDutySingle>(
+            "~/motor_duty_single_cmd", 10, bind(&RoboclawCore::duty_single_callback, this, _1));
 
         // create periodic callback
         mPubTimer = this->create_wall_timer(
@@ -87,20 +91,18 @@ namespace roboclaw
             mRoboclaw->set_duty(driver::BASE_ADDRESS + r, std::pair<int, int>(0, 0));
     }
 
-    void RoboclawCore::velocity_callback(const roboclaw::msg::MotorVelocity &msg) 
+    void RoboclawCore::duty_single_callback(const roboclaw::msg::MotorDutySingle &msg) 
     {
-        // mLastVelCmd = rclcpp::Time::now(RCL_ROS_TIME);
+        if ((msg.channel > 2) or (msg.channel < 1))
+        {
+            RCLCPP_ERROR(this->get_logger(),  "Roboclaw channel must be either 1 or 2");
+            return;
+        }
 
         try 
         {
-            if (msg.index < mOpenCnt)
-            {
-                mRoboclaw->set_duty(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
-            }
-            else
-            {
-                mRoboclaw->set_velocity(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
-            }
+            mRoboclaw->set_duty_single(driver::BASE_ADDRESS + msg.index, msg.channel, msg.mot_duty);
+
         } 
         catch(roboclaw::crc_exception &e)
         {
@@ -108,7 +110,50 @@ namespace roboclaw
         } 
         catch(timeout_exception &e)
         {
-            RCLCPP_ERROR(this->get_logger(), "RoboClaw timout during set velocity!");
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timeout during set velocity!");
+        }
+
+    }
+
+    void RoboclawCore::velocity_callback(const roboclaw::msg::MotorVelocity &msg) 
+    {
+        // mLastVelCmd = rclcpp::Time::now(RCL_ROS_TIME);
+
+        try 
+        {
+            mRoboclaw->set_velocity(driver::BASE_ADDRESS + msg.index, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
+        } 
+        catch(roboclaw::crc_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during set velocity!");
+        } 
+        catch(timeout_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timeout during set velocity!");
+        }
+
+    }
+
+    void RoboclawCore::velocity_single_callback(const roboclaw::msg::MotorVelocitySingle &msg) 
+    {
+        if ((msg.channel > 2) or (msg.channel < 1))
+        {
+            RCLCPP_ERROR(this->get_logger(),  "Roboclaw channel must be either 1 or 2");
+            return;
+        }
+
+        try 
+        {
+            mRoboclaw->set_velocity_single(driver::BASE_ADDRESS + msg.index, msg.channel, msg.mot_vel_sps);
+
+        } 
+        catch(roboclaw::crc_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw CRC error during set velocity!");
+        } 
+        catch(timeout_exception &e)
+        {
+            RCLCPP_ERROR(this->get_logger(), "RoboClaw timeout during set velocity!");
         }
 
     }
@@ -133,7 +178,11 @@ namespace roboclaw
 
     void RoboclawCore::position_single_callback(const roboclaw::msg::MotorPositionSingle &msg) 
     {
-        // mLastPosCmd = rclcpp::Time::now();
+        if ((msg.channel > 2) or (msg.channel < 1))
+        {
+            RCLCPP_ERROR(this->get_logger(),  "Roboclaw channel must be either 1 or 2");
+            return;
+        }
 
         try 
         {

@@ -283,6 +283,27 @@ namespace roboclaw {
         txrx(address, (uint8_t)AdvMotorControlCmds::SetSpdM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
     }
 
+    void driver::set_velocity_single(uint8_t address, uint8_t channel, int speed) 
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[4];
+
+        // RoboClaw expects big endian / MSB first
+        tx_buffer[0] = (uint8_t) ((speed >> 24) & 0xFF);
+        tx_buffer[1] = (uint8_t) ((speed >> 16) & 0xFF);
+        tx_buffer[2] = (uint8_t) ((speed >> 8) & 0xFF);
+        tx_buffer[3] = (uint8_t) (speed & 0xFF);
+
+        if (channel == 1)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetSpdM1, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
+        else if (channel == 2)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetSpdM2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
+    }
+
     void driver::set_position(uint8_t address, std::pair<int, int> position) 
     {
         uint8_t rx_buffer[1];
@@ -336,6 +357,25 @@ namespace roboclaw {
         tx_buffer[3] = (uint8_t) (duty.second & 0xFF);
 
         txrx(address, (uint8_t)AdvMotorControlCmds::SetDutyM1M2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+    }
+
+    void driver::set_duty_single(uint8_t address, uint8_t channel, int duty) 
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[2];
+
+        // RoboClaw expects big endian / MSB first
+        tx_buffer[0] = (uint8_t) ((duty >> 8) & 0xFF);
+        tx_buffer[1] = (uint8_t) (duty & 0xFF);
+
+        if (channel == 1)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetDutyM1, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
+        else if (channel == 2)
+        {
+            txrx(address, (uint8_t)AdvMotorControlCmds::SetDutyM2, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+        }
     }
 
 }

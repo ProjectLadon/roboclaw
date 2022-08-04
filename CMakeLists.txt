@@ -38,6 +38,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorPosition.msg"
         "msg/MotorPositionSingle.msg"
         "msg/MotorVoltsAmps.msg"
+        "msg/EncoderVelocity.msg"
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
@@ -47,9 +48,9 @@ rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_t
 ###########
 
 add_executable(roboclaw_node
-        src/roboclaw_roscore.cpp
         src/roboclaw_driver.cpp
         src/TimeoutSerial.cpp
+        src/roboclaw_roscore.cpp
         src/roboclaw_node.cpp)
 ament_target_dependencies(roboclaw_node
         "rclcpp"

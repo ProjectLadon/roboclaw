@@ -27,7 +27,13 @@
 #include <string>
 #include <map>
 #include <exception>
+#include <thread>
+#include <queue>
+#include <atomic>
+#include <memory>
+#include <tuple>
 
+#include "rclcpp/rclcpp.hpp"
 #include <boost/thread/mutex.hpp>
 #include "TimeoutSerial.h"
 
@@ -36,33 +42,31 @@ namespace roboclaw {
     class driver {
 
     public:
-        driver(std::string port, unsigned int baudrate);
-
-        std::string get_version(uint8_t address);
-
-        std::pair<int, int> get_encoders(uint8_t address);
-
-        std::pair<int, int> get_velocity(uint8_t address);
+        driver(std::string port, unsigned int baudrate, rclcpp::Node *node);
+        ~driver();
 
         void set_velocity(uint8_t address, std::pair<int, int> speed);
-
         void set_velocity_single(uint8_t address, uint8_t channel, int speed);
-
         void set_duty(uint8_t address, std::pair<int, int> duty);
-
         void set_duty_single(uint8_t address, uint8_t channel, int duty);
-
         void set_position(uint8_t address, std::pair<int, int> position);
-
         void set_position_single(uint8_t address, uint8_t channel, int position);
-
         void reset_encoders(uint8_t address);
 
-        float get_logic_voltage(uint8_t address);
+        // TODO: change this mess to take some proper callbacks
+        void read_version(uint8_t address);
+        void read_encoders(uint8_t address);
+        void read_velocity(uint8_t address);
+        void read_logic_voltage(uint8_t address);
+        void read_motor_voltage(uint8_t address);
+        void read_motor_currents(uint8_t address);
 
-        float get_motor_voltage(uint8_t address);
-
-        std::pair<float, float> get_motor_currents(uint8_t address);
+        bool get_logic_voltage(uint8_t address, float &result);
+        bool get_motor_voltage(uint8_t address, float &result);
+        bool get_motor_current(uint8_t address, std::pair<float, float> &result);
+        bool get_version(uint8_t address, std::string &result);
+        bool get_encoders(uint8_t address, std::pair<int, int> &result);
+        bool get_velocity(uint8_t address, std::pair<int, int> &result);
 
         const static uint8_t BASE_ADDRESS;
         const static uint32_t DEFAULT_BAUDRATE;
@@ -210,18 +214,73 @@ namespace roboclaw {
         };
 
     private:
-        std::shared_ptr<TimeoutSerial> serial;
 
-        boost::asio::io_service io;
+        enum CommandType : std::uint8_t
+        {
+            SetVelocity,
+            SetVelocitySingle,
+            SetDuty,
+            SetDutySingle,
+            SetPosition,
+            SetPositionSingle,
+            ResetEncoders,
+            GetLogicVoltage,
+            GetMotorVoltage,
+            GetMotorCurrents,
+            GetEncoders,
+            GetVelocities,
+            GetVersion
+        };
 
-        boost::mutex serial_mutex;
+        bool run_enable;
+
+        typedef std::tuple<CommandType, uint8_t, int, int> cmd_t;
+        std::unique_ptr<std::thread>    worker_thread;
+        std::shared_ptr<TimeoutSerial>  serial;
+        std::queue<cmd_t> command_queue;  
+
+        boost::asio::io_service         io;
+        boost::mutex                    serial_mutex;   // mutex to control access to the serial port
+        boost::mutex                    queue_mutex;    // mutex to control access to the command queue
+        boost::mutex                    data_mutex;     // mutex to control access to the returned data
+
+        rclcpp::Node                    *log_node;
+        
+        std::map<uint8_t, float>                    logic_voltages;
+        std::map<uint8_t, float>                    motor_voltages;
+        std::map<uint8_t, std::pair<float, float>>  motor_currents;
+        std::map<uint8_t, std::pair<int, int>>      encoders;
+        std::map<uint8_t, std::pair<int, int>>      velocities;
+        std::map<uint8_t, std::string>              versions;
+
+        std::map<uint8_t, std::atomic_bool>         logic_voltages_ready;
+        std::map<uint8_t, std::atomic_bool>         motor_voltages_ready;
+        std::map<uint8_t, std::atomic_bool>         motor_currents_ready;
+        std::map<uint8_t, std::atomic_bool>         encoders_ready;
+        std::map<uint8_t, std::atomic_bool>         velocities_ready;
+        std::map<uint8_t, std::atomic_bool>         versions_ready;
 
         uint16_t crc;
 
+        void worker();
+        
+        void exec_set_velocity(uint8_t address, int speed1, int speed2);
+        void exec_set_velocity_single(uint8_t address, uint8_t channel, int speed);
+        void exec_set_duty(uint8_t address, int duty1, int duty2);
+        void exec_set_duty_single(uint8_t address, uint8_t channel, int duty);
+        void exec_set_position(uint8_t address, int posn1, int posn2);
+        void exec_set_position_single(uint8_t address, uint8_t channel, int position);
+        void exec_reset_encoders(uint8_t address);
+
+        void exec_read_version(uint8_t address);
+        void exec_read_encoders(uint8_t address);
+        void exec_read_velocity(uint8_t address);
+        void exec_read_logic_voltage(uint8_t address);
+        void exec_read_motor_voltage(uint8_t address);
+        void exec_read_motor_currents(uint8_t address);
+
         uint16_t crc16(uint8_t *packet, size_t nBytes);
-
         void crc16_reset();
-
         size_t txrx(uint8_t address, uint8_t command, uint8_t *tx_data, size_t tx_length,
                     uint8_t *rx_data, size_t rx_length, bool tx_crc = false, bool rx_crc = false);
 

@@ -28,6 +28,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <atomic>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -40,6 +41,7 @@
 #include "roboclaw/msg/motor_position.hpp"
 #include "roboclaw/msg/motor_position_single.hpp"
 #include "roboclaw/msg/motor_volts_amps.hpp"
+#include "roboclaw/msg/encoder_velocity.hpp"
 
 using namespace std::chrono_literals;
 using namespace std;
@@ -56,23 +58,30 @@ namespace roboclaw {
         driver *mRoboclaw;
         uint8_t mClawCnt;
 
-        rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr mEncodersPub;
-        rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr mVoltsAmpsPub;
+        unique_ptr<thread> mPubWorkerThread;
+        vector<atomic_bool> mDataArrived;
+        bool mRunEnable;
 
-        rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr mDutyCmdSingleSub;
-        rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr mVelCmdSub;
-        rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr mVelCmdSingleSub;
-        rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr mPosCmdSub;
-        rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr mPosCmdSingleSub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mEncodersPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocity>::SharedPtr> mVelocityPub;
+        vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr> mVoltsAmpsPub;
+
+        vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr> mDutyCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr> mVelCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr> mVelCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr> mPosCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr> mPosCmdSingleSub;
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
-        void duty_single_callback(const roboclaw::msg::MotorDutySingle &msg);
-        void velocity_callback(const roboclaw::msg::MotorVelocity &msg);
-        void velocity_single_callback(const roboclaw::msg::MotorVelocitySingle &msg);
-        void position_callback(const roboclaw::msg::MotorPosition &msg);
-        void position_single_callback(const roboclaw::msg::MotorPositionSingle &msg);
+        void duty_single_callback(uint8_t idx, const roboclaw::msg::MotorDutySingle &msg);
+        void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg);
+        void velocity_single_callback(uint8_t idx, const roboclaw::msg::MotorVelocitySingle &msg);
+        void position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg);
+        void position_single_callback(uint8_t idx, const roboclaw::msg::MotorPositionSingle &msg);
         void timer_callback();
+        void pub_worker();
+
     };
 
 

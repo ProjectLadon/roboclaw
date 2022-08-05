@@ -42,8 +42,15 @@ namespace roboclaw {
     class driver {
 
     public:
-        driver(std::string port, unsigned int baudrate, rclcpp::Node *node);
+        driver(
+            const std::string port, 
+            const uint32_t baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Node *node
+        );
         ~driver();
+
+        void set_timeout_ms(const uint32_t to);
 
         void set_velocity(uint8_t address, std::pair<int, int> speed);
         void set_velocity_single(uint8_t address, uint8_t channel, int speed);
@@ -72,6 +79,7 @@ namespace roboclaw {
         const static uint32_t DEFAULT_BAUDRATE;
         const static float AMPS_SCALE;
         const static float VOLTS_SCALE;
+        const static uint32_t DEFAULT_TIMEOUT_MS;
 
         enum EncoderCmds : std::uint8_t
         {

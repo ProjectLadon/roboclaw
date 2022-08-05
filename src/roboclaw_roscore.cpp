@@ -40,11 +40,13 @@ namespace roboclaw
         // Declare the parameters
         this->declare_parameter<std::string>("serial_port", "");    // serial device name
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
-        this->declare_parameter<int64_t>("num_claws", 1);       // Number of roboclaws connected
+        this->declare_parameter<int32_t>("num_claws", 1);       // Number of roboclaws connected
+        this->declare_parameter<int32_t>("timeout_ms", driver::DEFAULT_TIMEOUT_MS);       // Serial timeout, in milliseconds
 
         // Declare a couple of variables...
         std::string serial_port;
-        int64_t baudrate;
+        int64_t baudrate = driver::DEFAULT_BAUDRATE;
+        uint32_t timeout = driver::DEFAULT_TIMEOUT_MS;
 
         // Read the parameters in, throw and error if the serial port name is short
         this->get_parameter("serial_port", serial_port);
@@ -53,10 +55,11 @@ namespace roboclaw
             throw std::runtime_error("Must specify serial port");
         }
         this->get_parameter("baudrate", baudrate);
-        this->get_parameter("num_roboclaws", mClawCnt);
+        this->get_parameter("num_claws", mClawCnt);
+        this->get_parameter("timeout_ms", timeout);
 
         // initialize the driver
-        mRoboclaw = new driver(serial_port, baudrate, this);
+        mRoboclaw = new driver(serial_port, baudrate, timeout, this);
 
         // zero all the encoders
         for (int r = 0; r < mClawCnt; r++)
@@ -64,16 +67,21 @@ namespace roboclaw
             mRoboclaw->reset_encoders(driver::BASE_ADDRESS + r);
         }
 
+        mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
+
         for (uint8_t r = 0; r < mClawCnt; r++)
         {
+            mDataArrived->at(r) = false;
+            RCLCPP_INFO(this->get_logger(),  "Creating publishers for node %d", r);
             // create publishers and subscribers
-            mEncodersPub[r] = this->create_publisher<roboclaw::msg::EncoderSteps>(
-                "~/" + to_string(r) + "/posn_out", 10);
-            mVoltsAmpsPub[r] = this->create_publisher<roboclaw::msg::MotorVoltsAmps>(
-                "~/" + to_string(r) + "/volts_amps_out", 10);
-            mVelocityPub[r] = this->create_publisher<roboclaw::msg::EncoderVelocity>(
-                "~/" + to_string(r) + "/velocity_out", 10);
+            mEncodersPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderSteps>(
+                "~/claw" + to_string(r) + "/posn_out", 10));
+            mVoltsAmpsPub.emplace_back(this->create_publisher<roboclaw::msg::MotorVoltsAmps>(
+                "~/claw" + to_string(r) + "/volts_amps_out", 10));
+            mVelocityPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderVelocity>(
+                "~/claw" + to_string(r) + "/velocity_out", 10));
 
+            RCLCPP_INFO(this->get_logger(),  "Creating subscriber callbacks for node %d", r);
             function<void(const roboclaw::msg::MotorVelocity &)> vel_cb 
                 = bind(&RoboclawCore::velocity_callback, this, r, _1);
             function<void(const roboclaw::msg::MotorVelocitySingle &)> vel_single_cb 
@@ -84,16 +92,20 @@ namespace roboclaw
                 = bind<void>(&RoboclawCore::position_single_callback, this, r, _1);
             function<void(const roboclaw::msg::MotorDutySingle &)> duty_single_cb 
                 = bind<void>(&RoboclawCore::duty_single_callback, this, r, _1);
-            mVelCmdSub[r] = this->create_subscription<roboclaw::msg::MotorVelocity>(
-                "~/" + to_string(r) + "/motor_vel_cmd", 10, vel_cb);
-            mVelCmdSingleSub[r] = this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
-                "~/" + to_string(r) + "/motor_vel_single_cmd", 10, vel_single_cb);
-            mPosCmdSub[r] = this->create_subscription<roboclaw::msg::MotorPosition>(
-                "~/" + to_string(r) + "/motor_pos_cmd", 10, posn_cb);
-            mPosCmdSingleSub[r] = this->create_subscription<roboclaw::msg::MotorPositionSingle>(
-                "~/" + to_string(r) + "/motor_pos_single_cmd", 10, posn_single_cb);
-            mDutyCmdSingleSub[r] = this->create_subscription<roboclaw::msg::MotorDutySingle>(
-                "~/" + to_string(r) + "/motor_duty_single_cmd", 10, duty_single_cb);
+
+            RCLCPP_INFO(this->get_logger(),  "Creating subscribers for node %d", r);
+            mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocity>(
+                "~/claw" + to_string(r) + "/motor_vel_cmd", 10, vel_cb));
+            mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+                "~/claw" + to_string(r) + "/motor_vel_single_cmd", 10, vel_single_cb));
+            mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPosition>(
+                "~/claw" + to_string(r) + "/motor_pos_cmd", 10, posn_cb));
+            mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+                "~/claw" + to_string(r) + "/motor_pos_single_cmd", 10, posn_single_cb));
+            mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
+                "~/claw" + to_string(r) + "/motor_duty_single_cmd", 10, duty_single_cb));
+
+            RCLCPP_INFO(this->get_logger(),  "Initialization complete for roboclaw %d", r);
         }
 
         // create periodic callback to trigger data fetching
@@ -165,7 +177,7 @@ namespace roboclaw
             mRoboclaw->read_motor_currents(driver::BASE_ADDRESS + r);
             mRoboclaw->read_motor_voltage(driver::BASE_ADDRESS + r);
             mRoboclaw->read_logic_voltage(driver::BASE_ADDRESS + r);
-            mDataArrived[r] = false;
+            mDataArrived->at(r) = false;
         }
     }
 
@@ -178,14 +190,14 @@ namespace roboclaw
                 float logicV, motorV;
                 pair<float, float> currents;
                 pair<int, int> encoders, velocity;
-                if (!mDataArrived[r] 
+                if (!mDataArrived->at(r) 
                     && mRoboclaw->get_logic_voltage((driver::BASE_ADDRESS + r), logicV)
                     && mRoboclaw->get_motor_voltage((driver::BASE_ADDRESS + r), motorV)
                     && mRoboclaw->get_motor_current((driver::BASE_ADDRESS + r), currents)
                     && mRoboclaw->get_encoders((driver::BASE_ADDRESS + r), encoders)
                     && mRoboclaw->get_velocity((driver::BASE_ADDRESS + r), velocity)
                 ) {
-                    mDataArrived[r] = true;
+                    mDataArrived->at(r) = true;
                     auto msg_encs = roboclaw::msg::EncoderSteps();
                     auto msg_amps = roboclaw::msg::MotorVoltsAmps();
                     auto msg_vel = roboclaw::msg::EncoderVelocity();

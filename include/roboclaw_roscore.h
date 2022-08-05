@@ -59,7 +59,7 @@ namespace roboclaw {
         uint8_t mClawCnt;
 
         unique_ptr<thread> mPubWorkerThread;
-        vector<atomic_bool> mDataArrived;
+        unique_ptr<vector<atomic<bool>>> mDataArrived;
         bool mRunEnable;
 
         vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mEncodersPub;

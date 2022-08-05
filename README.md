@@ -1,5 +1,5 @@
 # Roboclaw
-Roboclaw is an extensible series of [Roboclaw][roboclaw] nodes for [ROS][ros]
+Roboclaw is an extensible series of [Roboclaw][roboclaw] nodes for [ROS2][ros2]
 
 ## Features
 
@@ -9,7 +9,7 @@ Roboclaw is an extensible series of [Roboclaw][roboclaw] nodes for [ROS][ros]
 - Written in roscpp for effecient memory usage and performance
 
 ## Requirements
-- ROS Kinetic/Lunar/Melodic
+- ROS2 Humble
 
 ## Nodes
 
@@ -21,20 +21,30 @@ Roboclaw is an extensible series of [Roboclaw][roboclaw] nodes for [ROS][ros]
 | :------------- |:-------------| :-----|
 | serial_port | string | Path to the serial port to use |
 | baudrate | int | Baudrate of the serial port |
-| roboclaws | int | Number of Roboclaw controllers in packet serial mode |
+| num_claws | int | Number of Roboclaw controllers in packet serial mode |
+| timeout_ms | int | Serial timeout, in milliseconds |
 
 #### Topics
 | Action | Topic | Type |
 | :------------- |:-------------| :-----|
-| publish | motor_enc_steps | roboclaw/RoboclawEncoderSteps |
-| subscribe | motor_cmd_vel | roboclaw/RoboclawMotorVelocity |
+| publish | ~/claw{idx}/posn_out | roboclaw/msg/EncoderSteps |
+| publish | ~/claw{idx}/volts_amps_out | roboclaw/msg/MotorVoltsAmps |
+| publish | ~/claw{idx}/velocity_out | roboclaw/msg/EncoderVelocity |
+| subscribe | ~/claw{idx}/motor_vel_cmd | roboclaw/msg/MotorVelocity |
+| subscribe | ~/claw{idx}/motor_vel_single_cmd | roboclaw/msg/MotorVelocitySingle |
+| subscribe | ~/claw{idx}/motor_pos_cmd | roboclaw/msg/MotorPosition |
+| subscribe | ~/claw{idx}/motor_pos_single_cmd | roboclaw/msg/MotorPositionSingle |
+| subscribe | ~/claw{idx}/motor_duty_single_cmd | roboclaw/msg/MotorDutySingle |
 
 #### Notes
 
+- {idx} is the index of the target Roboclaw controller
 - When using one Roboclaw controller, configure it in packet serial mode with address 0x80. This will be motor index 0 in RoboclawEncoderSteps and RoboclawMotorVelocity.
 - When using more than one Roboclaw controller, configure them in packet serial mode with 0x80 being motor index 0, 0x81 being motor index 1, and so on.
 
 ### diffdrive_node
+
+#### This segment has not yet been updated for ROS2
 
 #### Parameters
 

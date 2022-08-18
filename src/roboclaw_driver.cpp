@@ -30,6 +30,7 @@
 namespace roboclaw {
 
     const uint8_t driver::BASE_ADDRESS          = 0x80;
+    const uint8_t driver::MAX_QUEUE_DEPTH       = 20;
     const uint32_t driver::DEFAULT_BAUDRATE     = 38400;
     const float driver::AMPS_SCALE              = 100.0f;
     const float driver::VOLTS_SCALE             = 10.0f;
@@ -122,6 +123,7 @@ namespace roboclaw {
         }
 
         serial->write((char*)&packet[0], packet.size());
+        // RCLCPP_INFO(log_node->get_logger(), "Serial write complete");
 
         size_t want_bytes;
         if (rx_crc)
@@ -132,13 +134,17 @@ namespace roboclaw {
         std::vector<char> response_vector;
 
         response_vector = serial->read(want_bytes);
+        // RCLCPP_INFO(log_node->get_logger(), "Serial read complete");
 
         size_t bytes_received = response_vector.size();
 
         uint8_t* response = (uint8_t*) &response_vector[0];
 
         if (bytes_received != want_bytes)
-            throw timeout_exception("Timeout reading from RoboClaw");
+        {
+            RCLCPP_ERROR(log_node->get_logger(),"Timeout reading from RoboClaw. Wanted %d bytes got %d", want_bytes, bytes_received);
+            throw timeout_exception("Timeout reading from RoboClaw.");
+        }
 
         // Check CRC
         if (rx_crc) {
@@ -150,6 +156,9 @@ namespace roboclaw {
             crc_received += response[bytes_received - 1];
 
             if (crc_calculated != crc_received) {
+                RCLCPP_ERROR(log_node->get_logger(),"Expected CRC 0x%x, received 0x%x", crc_calculated, crc_received);
+                RCLCPP_INFO(log_node->get_logger(), "Received string length: %d", bytes_received);
+
                 throw roboclaw::crc_exception("Roboclaw CRC mismatch");
             }
 
@@ -190,6 +199,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
+        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetEncoders, address, 0, 0));
         encoders_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
@@ -226,6 +236,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
+        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetVelocities, address, 0, 0));
         velocities_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity");
@@ -262,6 +273,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
+        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetMotorCurrents, address, 0, 0));
         motor_currents_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_currents");
@@ -290,6 +302,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
+        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetLogicVoltage, address, 0, 0));
         logic_voltages_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_logic_voltages");
@@ -315,6 +328,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
+        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetMotorVoltage, address, 0, 0));
         motor_voltages_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_voltages");
@@ -600,7 +614,7 @@ namespace roboclaw {
                 cmd_t cmd = command_queue.front();
                 command_queue.pop();
                 qlock.unlock();
-                RCLCPP_INFO(log_node->get_logger(), "Sending command %d...", std::get<0>(cmd));
+                // RCLCPP_INFO(log_node->get_logger(), "Sending command %d...", std::get<0>(cmd));
                 try
                 {
                     switch (std::get<0>(cmd))

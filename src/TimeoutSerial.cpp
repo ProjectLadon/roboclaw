@@ -122,7 +122,8 @@ void TimeoutSerial::read(char *data, size_t size)
                 return;
             case resultTimeoutExpired:
                 port.cancel();
-                throw(timeout_exception("Timeout expired"));
+                std::cout << "Timeout expiration warning" << std::endl;
+                throw(timeout_exception("Timeout expired "));
             case resultError:
                 timer.cancel();
                 port.cancel();

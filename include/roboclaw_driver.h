@@ -80,6 +80,7 @@ namespace roboclaw {
         const static float AMPS_SCALE;
         const static float VOLTS_SCALE;
         const static uint32_t DEFAULT_TIMEOUT_MS;
+        const static uint8_t MAX_QUEUE_DEPTH;
 
         enum EncoderCmds : std::uint8_t
         {

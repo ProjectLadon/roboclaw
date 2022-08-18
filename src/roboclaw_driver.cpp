@@ -600,6 +600,7 @@ namespace roboclaw {
                 cmd_t cmd = command_queue.front();
                 command_queue.pop();
                 qlock.unlock();
+                RCLCPP_INFO(log_node->get_logger(), "Sending command %d...", std::get<0>(cmd));
                 try
                 {
                     switch (std::get<0>(cmd))
@@ -623,11 +624,11 @@ namespace roboclaw {
                 }
                 catch(roboclaw::crc_exception &e)
                 {
-                    RCLCPP_ERROR(log_node->get_logger(), "RoboClaw CRC error!");
+                    RCLCPP_ERROR(log_node->get_logger(), "RoboClaw CRC error on node %d!", (std::get<1>(cmd) - driver::BASE_ADDRESS));
                 } 
                 catch(timeout_exception &e)
                 {
-                    RCLCPP_ERROR(log_node->get_logger(), "RoboClaw timeout!");
+                    RCLCPP_ERROR(log_node->get_logger(), "RoboClaw timeout on node %d!", (std::get<1>(cmd) - driver::BASE_ADDRESS));
                 }
 
             } 

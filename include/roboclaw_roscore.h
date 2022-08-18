@@ -74,11 +74,12 @@ namespace roboclaw {
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
-        void duty_single_callback(uint8_t idx, const roboclaw::msg::MotorDutySingle &msg);
+        void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
         void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg);
-        void velocity_single_callback(uint8_t idx, const roboclaw::msg::MotorVelocitySingle &msg);
+        void velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingle &msg);
         void position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg);
-        void position_single_callback(uint8_t idx, const roboclaw::msg::MotorPositionSingle &msg);
+        void position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingle &msg);
+        bool bad_inputs(uint8_t idx, uint8_t chan);
         void timer_callback();
         void pub_worker();
 

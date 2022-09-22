@@ -30,7 +30,7 @@
 
 using namespace std;
 using namespace std::chrono_literals;
-using std::placeholders::_1;
+// using std::placeholders::_1;
 
 namespace roboclaw 
 {
@@ -42,11 +42,13 @@ namespace roboclaw
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int32_t>("num_claws", 1);       // Number of roboclaws connected
         this->declare_parameter<int32_t>("timeout_ms", driver::DEFAULT_TIMEOUT_MS);       // Serial timeout, in milliseconds
+        this->declare_parameter<int32_t>("data_request_period_ms", 100);    // period between position/current/voltage requests in ms
 
         // Declare a couple of variables...
         std::string serial_port;
         int64_t baudrate = driver::DEFAULT_BAUDRATE;
         uint32_t timeout = driver::DEFAULT_TIMEOUT_MS;
+        uint32_t request_period = 100;
 
         // Read the parameters in, throw and error if the serial port name is short
         this->get_parameter("serial_port", serial_port);
@@ -57,6 +59,7 @@ namespace roboclaw
         this->get_parameter("baudrate", baudrate);
         this->get_parameter("num_claws", mClawCnt);
         this->get_parameter("timeout_ms", timeout);
+        this->get_parameter("data_request_period_ms", request_period);
 
         // initialize the driver
         mRoboclaw = new driver(serial_port, baudrate, timeout, this);
@@ -85,42 +88,42 @@ namespace roboclaw
             mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocity>(
                 "~/claw" + to_string(r) + "/motor_vel_cmd", 10, 
                 function<void(const roboclaw::msg::MotorVelocity &)>(
-                bind(&RoboclawCore::velocity_callback, this, r, _1)
+                bind(&RoboclawCore::velocity_callback, this, r, std::placeholders::_1)
             )));
             mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
                 "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan1", 10, 
                 function<void(const roboclaw::msg::MotorVelocitySingle &)>(
-                bind(&RoboclawCore::velocity_single_callback, this, r, 1, _1)
+                bind(&RoboclawCore::velocity_single_callback, this, r, 1, std::placeholders::_1)
             )));
             mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
                 "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan2", 10, 
                 function<void(const roboclaw::msg::MotorVelocitySingle &)>(
-                bind(&RoboclawCore::velocity_single_callback, this, r, 2, _1)
+                bind(&RoboclawCore::velocity_single_callback, this, r, 2, std::placeholders::_1)
             )));
             mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPosition>(
                 "~/claw" + to_string(r) + "/motor_pos_cmd", 10, 
                 function<void(const roboclaw::msg::MotorPosition &)>(
-                bind<void>(&RoboclawCore::position_callback, this, r, _1)
+                bind<void>(&RoboclawCore::position_callback, this, r, std::placeholders::_1)
             )));
             mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
                 "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan1", 10,  
                 function<void(const roboclaw::msg::MotorPositionSingle &)>(
-                bind<void>(&RoboclawCore::position_single_callback, this, r, 1, _1)
+                bind<void>(&RoboclawCore::position_single_callback, this, r, 1, std::placeholders::_1)
             )));
             mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
                 "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan2", 10,  
                 function<void(const roboclaw::msg::MotorPositionSingle &)>(
-                bind<void>(&RoboclawCore::position_single_callback, this, r, 2, _1)
+                bind<void>(&RoboclawCore::position_single_callback, this, r, 2, std::placeholders::_1)
             )));
             mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
                 "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan1", 10, 
                 function<void(const roboclaw::msg::MotorDutySingle &)>(
-                bind<void>(&RoboclawCore::duty_single_callback, this, r, 1, _1)
+                bind<void>(&RoboclawCore::duty_single_callback, this, r, 1, std::placeholders::_1)
             )));
             mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
                 "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan2", 10, 
                 function<void(const roboclaw::msg::MotorDutySingle &)>(
-                bind<void>(&RoboclawCore::duty_single_callback, this, r, 2, _1)
+                bind<void>(&RoboclawCore::duty_single_callback, this, r, 2, std::placeholders::_1)
             )));
 
             RCLCPP_INFO(this->get_logger(),  "Initialization complete for roboclaw %d", r);
@@ -128,7 +131,8 @@ namespace roboclaw
 
         // create periodic callback to trigger data fetching
         mPubTimer = this->create_wall_timer(
-            100ms, bind(&RoboclawCore::timer_callback, this));
+            (request_period * 1ms), bind(&RoboclawCore::timer_callback, this));
+            // 100ms, bind(&RoboclawCore::timer_callback, this));
 
         // Create worker thread to poll for returned data
         mRunEnable = true;

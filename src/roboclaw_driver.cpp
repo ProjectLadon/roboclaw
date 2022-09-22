@@ -142,7 +142,7 @@ namespace roboclaw {
 
         if (bytes_received != want_bytes)
         {
-            RCLCPP_ERROR(log_node->get_logger(),"Timeout reading from RoboClaw. Wanted %d bytes got %d", want_bytes, bytes_received);
+            RCLCPP_ERROR(log_node->get_logger(),"Timeout reading from RoboClaw. Wanted %ld bytes got %ld", want_bytes, bytes_received);
             throw timeout_exception("Timeout reading from RoboClaw.");
         }
 
@@ -157,7 +157,7 @@ namespace roboclaw {
 
             if (crc_calculated != crc_received) {
                 RCLCPP_ERROR(log_node->get_logger(),"Expected CRC 0x%x, received 0x%x", crc_calculated, crc_received);
-                RCLCPP_INFO(log_node->get_logger(), "Received string length: %d", bytes_received);
+                RCLCPP_INFO(log_node->get_logger(), "Received string length: %ld", bytes_received);
 
                 throw roboclaw::crc_exception("Roboclaw CRC mismatch");
             }
@@ -450,8 +450,9 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetPositionSingle, address, channel, position));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single");
+        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single address: %d channel: %d position: %d", address, channel, position);
     }
+
     void driver::exec_set_position_single(uint8_t address, uint8_t channel, int position)
     {
         uint8_t rx_buffer[1];
@@ -482,6 +483,7 @@ namespace roboclaw {
         command_queue.push(std::make_tuple(CommandType::SetDuty, address, duty.first, duty.second));
         RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty");
     }
+    
     void driver::exec_set_duty(uint8_t address, int duty1, int duty2) 
     {
         uint8_t rx_buffer[1];
@@ -502,8 +504,9 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetDutySingle, address, channel, duty));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single");
+        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single address: %d channel: %d duty: %d", address, channel, duty);
     }
+
     void driver::exec_set_duty_single(uint8_t address, uint8_t channel, int duty) 
     {
         uint8_t rx_buffer[1];

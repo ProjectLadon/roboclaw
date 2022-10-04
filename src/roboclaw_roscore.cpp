@@ -165,7 +165,9 @@ namespace roboclaw
 
     void RoboclawCore::duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg) 
     {
+        // RCLCPP_INFO(this->get_logger(), "Received a single motor duty coImmand");
         if(bad_inputs(idx, chan)) return;
+        // RCLCPP_INFO(this->get_logger(), "Setting a single motor duty command");
         mRoboclaw->set_duty_single(driver::BASE_ADDRESS + idx, chan, msg.mot_duty);
     }
 

@@ -32,7 +32,7 @@
 
 using namespace std;
 using namespace std::chrono_literals;
-using std::placeholders::_1;
+//using std::placeholders::_1;
 
 namespace roboclaw {
 
@@ -71,9 +71,9 @@ namespace roboclaw {
         mOdomPub    = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
         mMotorPub   = this->create_publisher<roboclaw::msg::MotorVelocity>("motor_cmd_vel", 10);
         mEncSub     = this->create_subscription<roboclaw::msg::EncoderSteps>(
-                        "motor_enc", 10, bind(&DiffDriveCore::encoder_callback, this, _1));
+                        "motor_enc", 10, bind(&DiffDriveCore::encoder_callback, this, std::placeholders::_1));
         mTwistSub   = this->create_subscription<geometry_msgs::msg::Twist>(
-                        "cmd_vel", 10, bind(&DiffDriveCore::twist_callback, this, _1));
+                        "cmd_vel", 10, bind(&DiffDriveCore::twist_callback, this, std::placeholders::_1));
     }
 
     void DiffDriveCore::twist_callback(const geometry_msgs::msg::Twist &msg) 

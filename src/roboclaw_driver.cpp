@@ -367,13 +367,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetVelocity, address, speed.first, speed.second));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity");
     }
     void driver::exec_set_velocity(uint8_t address, int speed1, int speed2)
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[8];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity");
 
         // RoboClaw expects big endian / MSB first
         tx_buffer[0] = (uint8_t) ((speed1 >> 24) & 0xFF);
@@ -393,13 +393,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetVelocitySingle, address, channel, speed));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single");
     }
     void driver::exec_set_velocity_single(uint8_t address, uint8_t channel, int speed) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[4];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single");
 
 
         // RoboClaw expects big endian / MSB first
@@ -422,13 +422,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetPosition, address, position.first, position.second));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position");
     }
     void driver::exec_set_position(uint8_t address, int posn1, int posn2) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[9];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_position");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_position");
 
         // RoboClaw expects big endian / MSB first
         tx_buffer[0] = (uint8_t) ((posn1 >> 24) & 0xFF);
@@ -450,14 +450,14 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetPositionSingle, address, channel, position));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single address: %d channel: %d position: %d", address, channel, position);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single address: %d channel: %d position: %d", address, channel, position);
     }
 
     void driver::exec_set_position_single(uint8_t address, uint8_t channel, int position)
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[5];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_position_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_position_single");
     
         // RoboClaw expects big endian / MSB first
         tx_buffer[0] = (uint8_t) ((position >> 24) & 0xFF);
@@ -504,14 +504,14 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_tuple(CommandType::SetDutySingle, address, channel, duty));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single address: %d channel: %d duty: %d", address, channel, duty);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single address: %d channel: %d duty: %d", address, channel, duty);
     }
 
     void driver::exec_set_duty_single(uint8_t address, uint8_t channel, int duty) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[2];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_duty_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_duty_single");
     
         // RoboClaw expects big endian / MSB first
         tx_buffer[0] = (uint8_t) ((duty >> 8) & 0xFF);
@@ -614,6 +614,7 @@ namespace roboclaw {
 
             if (!command_queue.empty())
             {
+                // RCLCPP_INFO(log_node->get_logger(), "Queue size: %ld", command_queue.size());
                 cmd_t cmd = command_queue.front();
                 command_queue.pop();
                 qlock.unlock();

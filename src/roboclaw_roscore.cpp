@@ -67,7 +67,8 @@ namespace roboclaw
         // zero all the encoders
         for (int r = 0; r < mClawCnt; r++)
         {
-            mRoboclaw->reset_encoders(driver::BASE_ADDRESS + r);
+            // Commenting this out because it's not something every one needs
+            // mRoboclaw->reset_encoders(driver::BASE_ADDRESS + r);
         }
 
         mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
@@ -134,7 +135,7 @@ namespace roboclaw
             (request_period * 1ms), bind(&RoboclawCore::timer_callback, this));
             // 100ms, bind(&RoboclawCore::timer_callback, this));
 
-        // Create worker thread to poll for returned data
+        // Create worker thread to access serial port
         mRunEnable = true;
         mPubWorkerThread = unique_ptr<thread>(new thread(&RoboclawCore::pub_worker, this));
     }

@@ -67,6 +67,8 @@ namespace roboclaw {
         void read_logic_voltage(uint8_t address);
         void read_motor_voltage(uint8_t address);
         void read_motor_currents(uint8_t address);
+        void read_position_errors(uint8_t address);
+        void read_status(uint8_t address);
 
         bool get_logic_voltage(uint8_t address, float &result);
         bool get_motor_voltage(uint8_t address, float &result);
@@ -74,6 +76,10 @@ namespace roboclaw {
         bool get_version(uint8_t address, std::string &result);
         bool get_encoders(uint8_t address, std::pair<int, int> &result);
         bool get_velocity(uint8_t address, std::pair<int, int> &result);
+        bool get_position_errors(uint8_t address, std::pair<int, int> &result);
+        bool get_status(uint8_t address, uint32_t &result);
+
+        bool is_queue_flooded() { return (command_queue.size() > MAX_QUEUE_DEPTH); }
 
         const static uint8_t BASE_ADDRESS;
         const static uint32_t DEFAULT_BAUDRATE;
@@ -203,7 +209,7 @@ namespace roboclaw {
             ReadCtrls               = 104, // Read CTRLs
             SetAutoHomeDutySpdM1    = 105, // Set Auto Home Duty/Speed and Timeout M1
             SetAutoHomeDutySpdM2    = 106, // Set Auto Home Duty/Speed and Timeout M2
-            ReadAutoHomeSettings    = 107, //Read Auto Home Settings
+            ReadAutoHomeSettings    = 107, // Read Auto Home Settings
             SetSpeedErrLimits       = 109, // Set Speed Error Limits
             ReadSpeedErrLimits      = 110, // Read Speed Error Limits
             SetPosErrLimits         = 112, // Set Position Error Limits
@@ -238,7 +244,9 @@ namespace roboclaw {
             GetMotorCurrents,
             GetEncoders,
             GetVelocities,
-            GetVersion
+            GetPositionErrors,
+            GetVersion,
+            GetStatus
         };
 
         bool run_enable;
@@ -260,14 +268,18 @@ namespace roboclaw {
         std::map<uint8_t, std::pair<float, float>>  motor_currents;
         std::map<uint8_t, std::pair<int, int>>      encoders;
         std::map<uint8_t, std::pair<int, int>>      velocities;
+        std::map<uint8_t, std::pair<int, int>>      posn_errors;
         std::map<uint8_t, std::string>              versions;
+        std::map<uint8_t, uint32_t>                 status;
 
         std::map<uint8_t, std::atomic_bool>         logic_voltages_ready;
         std::map<uint8_t, std::atomic_bool>         motor_voltages_ready;
         std::map<uint8_t, std::atomic_bool>         motor_currents_ready;
         std::map<uint8_t, std::atomic_bool>         encoders_ready;
         std::map<uint8_t, std::atomic_bool>         velocities_ready;
+        std::map<uint8_t, std::atomic_bool>         posn_err_ready;
         std::map<uint8_t, std::atomic_bool>         versions_ready;
+        std::map<uint8_t, std::atomic_bool>         status_ready;
 
         uint16_t crc;
 
@@ -287,6 +299,8 @@ namespace roboclaw {
         void exec_read_logic_voltage(uint8_t address);
         void exec_read_motor_voltage(uint8_t address);
         void exec_read_motor_currents(uint8_t address);
+        void exec_read_position_errors(uint8_t address);
+        void exec_read_status(uint8_t address);
 
         uint16_t crc16(uint8_t *packet, size_t nBytes);
         void crc16_reset();

@@ -30,7 +30,7 @@
 namespace roboclaw {
 
     const uint8_t driver::BASE_ADDRESS          = 0x80;
-    const uint8_t driver::MAX_QUEUE_DEPTH       = 20;
+    const uint8_t driver::MAX_QUEUE_DEPTH       = 50;
     const uint32_t driver::DEFAULT_BAUDRATE     = 38400;
     const float driver::AMPS_SCALE              = 100.0f;
     const float driver::VOLTS_SCALE             = 10.0f;
@@ -195,22 +195,21 @@ namespace roboclaw {
         versions_ready[address] = true;
     }
 
-    void driver::read_encoders(uint8_t address)
+    void driver::read_status(uint8_t address)
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
-        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
+        status_ready[address] = false;
         command_queue.push(std::make_tuple(CommandType::GetEncoders, address, 0, 0));
-        encoders_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
     }
-    void driver::exec_read_encoders(uint8_t address)
+    void driver::exec_read_status(uint8_t address)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
-        uint8_t rx_buffer[5];
+        uint8_t rx_buffer[4];
         // RCLCPP_INFO(log_node->get_logger(), "Executing read_encoders");
 
-        txrx(address, (uint8_t)EncoderCmds::ReadPosM1, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        txrx(address, (uint8_t)StatusCmds::ReadStatus, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
         uint32_t e1 = 0;
 
@@ -219,14 +218,37 @@ namespace roboclaw {
         e1 += rx_buffer[2] << 8;
         e1 += rx_buffer[3];
 
-        txrx(address, (uint8_t)EncoderCmds::ReadPosM2, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        status[address] = e1;
+        status_ready[address] = true;
+    }
 
+    void driver::read_encoders(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        encoders_ready[address] = false;
+        command_queue.push(std::make_tuple(CommandType::GetEncoders, address, 0, 0));
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
+    }
+    void driver::exec_read_encoders(uint8_t address)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        uint8_t rx_buffer[8];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_encoders");
+
+        txrx(address, (uint8_t)EncoderCmds::ReadEncoderCnts, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        uint32_t e1 = 0;
         uint32_t e2 = 0;
 
-        e2 += rx_buffer[0] << 24;
-        e2 += rx_buffer[1] << 16;
-        e2 += rx_buffer[2] << 8;
-        e2 += rx_buffer[3];
+        e1 += rx_buffer[0] << 24;
+        e1 += rx_buffer[1] << 16;
+        e1 += rx_buffer[2] << 8;
+        e1 += rx_buffer[3];
+        e2 += rx_buffer[4] << 24;
+        e2 += rx_buffer[5] << 16;
+        e2 += rx_buffer[6] << 8;
+        e2 += rx_buffer[7];
 
         encoders[address] = std::pair<int, int>((int) (int32_t) e1, (int) (int32_t) e2);
         encoders_ready[address] = true;
@@ -236,13 +258,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
-        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetVelocities, address, 0, 0));
         velocities_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity");
     }
     void driver::exec_read_velocity(uint8_t address)
     {
+        // TODO: Fix this function so it handles velocity signs correctly.
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[5];
         // RCLCPP_INFO(log_node->get_logger(), "Executing read_velocity");
@@ -269,11 +291,42 @@ namespace roboclaw {
         velocities_ready[address] = true;
     }
 
+    void driver::read_position_errors(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        command_queue.push(std::make_tuple(CommandType::GetPositionErrors, address, 0, 0));
+        posn_err_ready[address] = false;
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity");
+    }
+    void driver::exec_read_position_errors(uint8_t address)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        uint8_t rx_buffer[8];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_position_errors");
+
+        txrx(address, (uint8_t)EncoderCmds::ReadPosErr, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        uint32_t e1 = 0;
+        uint32_t e2 = 0;
+
+        e1 += rx_buffer[0] << 24;
+        e1 += rx_buffer[1] << 16;
+        e1 += rx_buffer[2] << 8;
+        e1 += rx_buffer[3];
+        e2 += rx_buffer[4] << 24;
+        e2 += rx_buffer[5] << 16;
+        e2 += rx_buffer[6] << 8;
+        e2 += rx_buffer[7];
+
+        posn_errors[address] = std::pair<int, int>((int) (int32_t) e1, (int) (int32_t) e2);
+        posn_err_ready[address] = true;
+    }
+
     void driver::read_motor_currents(uint8_t address)
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
-        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetMotorCurrents, address, 0, 0));
         motor_currents_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_currents");
@@ -302,7 +355,6 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
-        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetLogicVoltage, address, 0, 0));
         logic_voltages_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_logic_voltages");
@@ -328,7 +380,6 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
-        if (command_queue.size() > MAX_QUEUE_DEPTH) return;
         command_queue.push(std::make_tuple(CommandType::GetMotorVoltage, address, 0, 0));
         motor_voltages_ready[address] = false;
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_voltages");
@@ -605,6 +656,32 @@ namespace roboclaw {
         }
         return false;
     }
+    bool driver::get_position_errors(uint8_t address, std::pair<int, int> &result)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        if (posn_errors.find(address) != posn_errors.end())
+        {
+            if (posn_err_ready[address])
+            {
+                result = posn_errors[address];
+                return true;
+            }
+        }
+        return false;
+    }
+    bool driver::get_status(uint8_t address, uint32_t &result)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        if (status.find(address) != status.end())
+        {
+            if (status_ready[address])
+            {
+                result = status[address];
+                return true;
+            }
+        }
+        return false;
+    }
 
     void driver::worker()
     {
@@ -614,7 +691,10 @@ namespace roboclaw {
 
             if (!command_queue.empty())
             {
-                // RCLCPP_INFO(log_node->get_logger(), "Queue size: %ld", command_queue.size());
+                if (command_queue.size() > MAX_QUEUE_DEPTH)
+                {
+                    RCLCPP_ERROR(log_node->get_logger(), "Queue size: %ld", command_queue.size());
+                }
                 cmd_t cmd = command_queue.front();
                 command_queue.pop();
                 qlock.unlock();
@@ -636,6 +716,8 @@ namespace roboclaw {
                         case GetEncoders:       { exec_read_encoders(std::get<1>(cmd)); break; }
                         case GetVelocities:     { exec_read_velocity(std::get<1>(cmd)); break; }
                         case GetVersion:        { exec_read_version(std::get<1>(cmd)); break; }
+                        case GetPositionErrors: { exec_read_position_errors(std::get<1>(cmd)); break; }
+                        case GetStatus:         { exec_read_status(std::get<1>(cmd)); break; }
                         default:
                             break;
                     }

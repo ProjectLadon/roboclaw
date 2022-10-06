@@ -39,6 +39,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorPositionSingle.msg"
         "msg/MotorVoltsAmps.msg"
         "msg/EncoderVelocity.msg"
+        "msg/Status.msg"
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")

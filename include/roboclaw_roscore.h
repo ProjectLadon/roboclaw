@@ -29,6 +29,8 @@
 #include <memory>
 #include <string>
 #include <atomic>
+#include <vector>
+#include <tuple>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -42,11 +44,15 @@
 #include "roboclaw/msg/motor_position_single.hpp"
 #include "roboclaw/msg/motor_volts_amps.hpp"
 #include "roboclaw/msg/encoder_velocity.hpp"
+#include "roboclaw/msg/status.hpp"
 
 using namespace std::chrono_literals;
 using namespace std;
 
 namespace roboclaw {
+
+    typedef tuple<int32_t, int32_t, int32_t>  position_limits_center_t;
+    typedef tuple<position_limits_center_t, position_limits_center_t> node_posn_limits_t;
 
     class RoboclawCore : public rclcpp::Node 
     {
@@ -62,15 +68,22 @@ namespace roboclaw {
         unique_ptr<vector<atomic<bool>>> mDataArrived;
         bool mRunEnable;
 
+        // position limits
+        vector<node_posn_limits_t> mPosnLimits;
+
         vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mEncodersPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mErrorsPub;
         vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocity>::SharedPtr> mVelocityPub;
         vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr> mVoltsAmpsPub;
+        vector<rclcpp::Publisher<roboclaw::msg::Status>::SharedPtr> mStatusPub;
 
         vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr> mDutyCmdSingleSub;
         vector<rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr> mVelCmdSub;
         vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr> mVelCmdSingleSub;
         vector<rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr> mPosCmdSub;
         vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr> mPosCmdSingleSub;
+        vector<pair<uint8_t, uint8_t>> mCmdThrottleLimit;
+        vector<pair<uint8_t, uint8_t>> mCmdThrottleCounter;
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
@@ -82,6 +95,16 @@ namespace roboclaw {
         bool bad_inputs(uint8_t idx, uint8_t chan);
         void timer_callback();
         void pub_worker();
+
+        uint32_t get_max_posn(position_limits_center_t t) { return(get<0>(t)); }
+        uint32_t get_min_posn(position_limits_center_t t) { return(get<1>(t)); }
+        uint32_t get_center_posn(position_limits_center_t t) { return(get<2>(t)); }
+        position_limits_center_t make_limits(uint32_t max, uint32_t min, uint32_t center) 
+        {
+            return make_tuple(max, min, center);
+        }
+        int32_t bound_input(int32_t val, int32_t max, int32_t min) { return(std::max(std::min(val, max), min)); }
+        bool is_throttle_clear(uint8_t idx, uint8_t chan);
 
     };
 

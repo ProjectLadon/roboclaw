@@ -336,40 +336,37 @@ namespace roboclaw
                 pair<float, float> currents;
                 pair<int, int> encoders, velocity, errors;
                 uint32_t status;
-                if (!mDataArrived->at(r) 
-                    and mRoboclaw->get_logic_voltage((driver::BASE_ADDRESS + r), logicV)
-                    and mRoboclaw->get_motor_voltage((driver::BASE_ADDRESS + r), motorV)
-                    and mRoboclaw->get_motor_current((driver::BASE_ADDRESS + r), currents)
-                    and mRoboclaw->get_encoders((driver::BASE_ADDRESS + r), encoders)
-                    and mRoboclaw->get_velocity((driver::BASE_ADDRESS + r), velocity)
-                    and mRoboclaw->get_position_errors((driver::BASE_ADDRESS + r), errors)
-                    and mRoboclaw->get_status((driver::BASE_ADDRESS + r), status)
-                ) {
-                    mDataArrived->at(r) = true;
+                if (mRoboclaw->get_encoders((driver::BASE_ADDRESS + r), encoders))
+                {
                     auto msg_encs = roboclaw::msg::EncoderSteps();
-                    auto msg_amps = roboclaw::msg::MotorVoltsAmps();
-                    auto msg_vel = roboclaw::msg::EncoderVelocity();
-                    auto msg_errs = roboclaw::msg::EncoderSteps();
-                    auto msg_stat = roboclaw::msg::Status();
-
-                    msg_errs.index = r;
-                    msg_errs.mot1_enc_steps = errors.first;
-                    msg_errs.mot2_enc_steps = errors.second;
-
+                    mRoboclaw->clear_encoders_ready(driver::BASE_ADDRESS + r);
                     msg_encs.index = r;
                     msg_encs.mot1_enc_steps = encoders.first;
                     msg_encs.mot2_enc_steps = encoders.second;
-
+                    mEncodersPub[r]->publish(msg_encs);
+                }
+                if (mRoboclaw->get_velocity((driver::BASE_ADDRESS + r), velocity))
+                {
+                    auto msg_vel = roboclaw::msg::EncoderVelocity();
+                    mRoboclaw->clear_velocities_ready(driver::BASE_ADDRESS + r);
                     msg_vel.index = r;
                     msg_vel.mot1_enc_vel = velocity.first;
                     msg_vel.mot2_enc_vel = velocity.second;
-
-                    msg_amps.index = r;
-                    msg_amps.motor_volts = motorV;
-                    msg_amps.logic_volts = logicV;
-                    msg_amps.mot1_amps = currents.first;
-                    msg_amps.mot2_amps = currents.second;
-
+                    mVelocityPub[r]->publish(msg_vel);
+                }
+                if (mRoboclaw->get_position_errors((driver::BASE_ADDRESS + r), errors))
+                {
+                    auto msg_errs = roboclaw::msg::EncoderSteps();
+                    mRoboclaw->clear_position_errors_ready(driver::BASE_ADDRESS + r);
+                    msg_errs.index = r;
+                    msg_errs.mot1_enc_steps = errors.first;
+                    msg_errs.mot2_enc_steps = errors.second;
+                    mErrorsPub[r]->publish(msg_errs);
+                }
+                if (mRoboclaw->get_status((driver::BASE_ADDRESS + r), status))
+                {
+                    auto msg_stat = roboclaw::msg::Status();
+                    mRoboclaw->clear_status_ready(driver::BASE_ADDRESS + r);
                     msg_stat.index                      = r;
                     msg_stat.status                     = status;
                     msg_stat.normal                     = (status == 0);
@@ -397,12 +394,23 @@ namespace roboclaw
                     msg_stat.s5_trig                    = status & 0x00800000;
                     msg_stat.speed_err_limit_warn       = status & 0x01000000;
                     msg_stat.position_err_limit_warn    = status & 0x02000000;
-
-                    mEncodersPub[r]->publish(msg_encs);
-                    mVoltsAmpsPub[r]->publish(msg_amps);
-                    mVelocityPub[r]->publish(msg_vel);
-                    mErrorsPub[r]->publish(msg_errs);
                     mStatusPub[r]->publish(msg_stat);
+                }
+                if (mRoboclaw->get_logic_voltage((driver::BASE_ADDRESS + r), logicV)
+                    and mRoboclaw->get_motor_voltage((driver::BASE_ADDRESS + r), motorV)
+                    and mRoboclaw->get_motor_current((driver::BASE_ADDRESS + r), currents)
+                ) {
+                    mRoboclaw->clear_logic_volt_ready(driver::BASE_ADDRESS + r);
+                    mRoboclaw->clear_motor_volt_ready(driver::BASE_ADDRESS + r);
+                    mRoboclaw->clear_motor_amps_ready(driver::BASE_ADDRESS + r);
+                    auto msg_amps = roboclaw::msg::MotorVoltsAmps();
+
+                    msg_amps.index = r;
+                    msg_amps.motor_volts = motorV;
+                    msg_amps.logic_volts = logicV;
+                    msg_amps.mot1_amps = currents.first;
+                    msg_amps.mot2_amps = currents.second;
+                    mVoltsAmpsPub[r]->publish(msg_amps);
                 }
             }
         }

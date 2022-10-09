@@ -79,6 +79,15 @@ namespace roboclaw {
         bool get_position_errors(uint8_t address, std::pair<int, int> &result);
         bool get_status(uint8_t address, uint32_t &result);
 
+        void clear_logic_volt_ready(uint8_t address) { logic_voltages_ready[address] = false; }
+        void clear_motor_volt_ready(uint8_t address) { motor_voltages_ready[address] = false; }
+        void clear_motor_amps_ready(uint8_t address) { motor_currents_ready[address] = false; }
+        void clear_encoders_ready(uint8_t address) { encoders_ready[address] = false; }
+        void clear_velocities_ready(uint8_t address) { velocities_ready[address] = false; }
+        void clear_position_errors_ready(uint8_t address) { posn_err_ready[address] = false; }
+        void clear_version_ready(uint8_t address) { versions_ready[address] = false; }
+        void clear_status_ready(uint8_t address) { status_ready[address] = false; }
+
         bool is_queue_flooded() { return (command_queue.size() > MAX_QUEUE_DEPTH); }
 
         const static uint8_t BASE_ADDRESS;

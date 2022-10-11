@@ -200,7 +200,7 @@ namespace roboclaw {
         boost::mutex::scoped_lock qlock(queue_mutex);
         boost::mutex::scoped_lock dlock(data_mutex);
         status_ready[address] = false;
-        command_queue.push(std::make_tuple(CommandType::GetEncoders, address, 0, 0));
+        command_queue.push(std::make_tuple(CommandType::GetStatus, address, 0, 0));
         // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
     }
     void driver::exec_read_status(uint8_t address)

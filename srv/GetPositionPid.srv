@@ -2,6 +2,9 @@
 
 uint8 node 
 uint8 channel
+---
+bool success
+string error "success"
 float32 p 
 float32 i 
 float32 d
@@ -9,6 +12,3 @@ float32 max_i
 uint32 deadzone 
 int32 max_pos 
 int32 min_pos 
----
-bool success
-string error "success"

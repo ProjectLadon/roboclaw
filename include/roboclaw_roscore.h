@@ -94,24 +94,47 @@ namespace roboclaw {
         vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr> mPosCmdSingleSub;
 
         // services
-        vector<rclcpp::Service<roboclaw::srv::GetPositionPid>::SharedPtr>   mGetPosPIDSrv;
-        vector<rclcpp::Service<roboclaw::srv::GetVelocityPid>::SharedPtr>   mGetVelPIDSrv;
-        vector<rclcpp::Service<roboclaw::srv::SetPositionPid>::SharedPtr>   mSetPosPIDSrv;
-        vector<rclcpp::Service<roboclaw::srv::SetVelocityPid>::SharedPtr>   mSetVelPIDSrv;
-        vector<rclcpp::Service<roboclaw::srv::ResetEncoder>::SharedPtr>     mResetEncoderSrv;
-        vector<rclcpp::Service<roboclaw::srv::ResetMotor>::SharedPtr>       mResetMotorSrv;
+        rclcpp::Service<roboclaw::srv::GetPositionPid>::SharedPtr   mGetPosPIDSrv;
+        rclcpp::Service<roboclaw::srv::GetVelocityPid>::SharedPtr   mGetVelPIDSrv;
+        rclcpp::Service<roboclaw::srv::SetPositionPid>::SharedPtr   mSetPosPIDSrv;
+        rclcpp::Service<roboclaw::srv::SetVelocityPid>::SharedPtr   mSetVelPIDSrv;
+        rclcpp::Service<roboclaw::srv::ResetEncoder>::SharedPtr     mResetEncoderSrv;
+        rclcpp::Service<roboclaw::srv::ResetMotor>::SharedPtr       mResetMotorSrv;
 
         rclcpp::TimerBase::SharedPtr mPubTimer;
 
+        // subscriber callbacks
         void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
         void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg);
         void velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingle &msg);
         void position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg);
         void position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingle &msg);
-        bool bad_inputs(uint8_t idx, uint8_t chan);
+        
+        // service callbacks
+        void get_posn_pid_cb(
+            const shared_ptr<roboclaw::srv::GetPositionPid::Request> request,
+            shared_ptr<roboclaw::srv::GetPositionPid::Response> response);
+        void get_vel_pid_cb(
+            const shared_ptr<roboclaw::srv::GetVelocityPid::Request> request,
+            shared_ptr<roboclaw::srv::GetVelocityPid::Response> response);
+        void set_posn_pid_cb(
+            const shared_ptr<roboclaw::srv::SetPositionPid::Request> request,
+            shared_ptr<roboclaw::srv::SetPositionPid::Response> response);
+        void set_vel_pid_cb(
+            const shared_ptr<roboclaw::srv::SetVelocityPid::Request> request,
+            shared_ptr<roboclaw::srv::SetVelocityPid::Response> response);
+        void reset_encoder_cb(
+            const shared_ptr<roboclaw::srv::ResetEncoder::Request> request,
+            shared_ptr<roboclaw::srv::ResetEncoder::Response> response);
+        void reset_motor_cb(
+            const shared_ptr<roboclaw::srv::ResetMotor::Request> request,
+            shared_ptr<roboclaw::srv::ResetMotor::Response> response);
+
+        // timer callback & thread workers
         void timer_callback();
         void pub_worker();
 
+        // utility functions
         uint32_t get_max_posn(position_limits_center_t t) { return(get<0>(t)); }
         uint32_t get_min_posn(position_limits_center_t t) { return(get<1>(t)); }
         uint32_t get_center_posn(position_limits_center_t t) { return(get<2>(t)); }
@@ -121,6 +144,7 @@ namespace roboclaw {
         }
         int32_t bound_input(int32_t val, int32_t max, int32_t min) { return(std::max(std::min(val, max), min)); }
         bool is_throttle_clear(uint8_t idx, uint8_t chan);
+        bool bad_inputs(uint8_t idx, uint8_t chan);
 
     };
 

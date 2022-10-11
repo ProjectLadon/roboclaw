@@ -2,7 +2,7 @@
 
 uint8 node 
 uint8 channel
-uint32 value 0
+int32 value 0
 ---
 bool success
 string error "success"

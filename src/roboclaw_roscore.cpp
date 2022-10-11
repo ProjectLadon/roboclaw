@@ -101,6 +101,33 @@ namespace roboclaw
 
         mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
 
+        RCLCPP_INFO(this->get_logger(),  "Creating roboclaw services");
+        mGetPosPIDSrv = this->create_service<roboclaw::srv::GetPositionPid>("~/get_position_pid", 
+            function<void(const shared_ptr<roboclaw::srv::GetPositionPid::Request>,
+            shared_ptr<roboclaw::srv::GetPositionPid::Response>)>(
+            bind<void>(&RoboclawCore::get_posn_pid_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mGetVelPIDSrv = this->create_service<roboclaw::srv::GetVelocityPid>("~/get_velocity_pid", 
+            function<void(const shared_ptr<roboclaw::srv::GetVelocityPid::Request>,
+            shared_ptr<roboclaw::srv::GetVelocityPid::Response>)>(
+            bind<void>(&RoboclawCore::get_vel_pid_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mSetPosPIDSrv = this->create_service<roboclaw::srv::SetPositionPid>("~/set_position_pid", 
+            function<void(const shared_ptr<roboclaw::srv::SetPositionPid::Request>,
+            shared_ptr<roboclaw::srv::SetPositionPid::Response>)>(
+            bind<void>(&RoboclawCore::set_posn_pid_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mSetVelPIDSrv = this->create_service<roboclaw::srv::SetVelocityPid>("~/set_velocity_pid", 
+            function<void(const shared_ptr<roboclaw::srv::SetVelocityPid::Request>,
+            shared_ptr<roboclaw::srv::SetVelocityPid::Response>)>(
+            bind<void>(&RoboclawCore::set_vel_pid_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mResetEncoderSrv = this->create_service<roboclaw::srv::ResetEncoder>("~/reset_encoder", 
+            function<void(const shared_ptr<roboclaw::srv::ResetEncoder::Request>,
+            shared_ptr<roboclaw::srv::ResetEncoder::Response>)>(
+            bind<void>(&RoboclawCore::reset_encoder_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mResetMotorSrv = this->create_service<roboclaw::srv::ResetMotor>("~/reset_encoder", 
+            function<void(const shared_ptr<roboclaw::srv::ResetMotor::Request>,
+            shared_ptr<roboclaw::srv::ResetMotor::Response>)>(
+            bind<void>(&RoboclawCore::reset_motor_cb, this, std::placeholders::_1, std::placeholders::_2)));
+
+
         for (uint8_t r = 0; r < mClawCnt; r++)
         {
             mDataArrived->at(r) = false;
@@ -274,6 +301,125 @@ namespace roboclaw
         mRoboclaw->set_position_single(driver::BASE_ADDRESS + idx, msg.channel, cmd);
     }
 
+    void RoboclawCore::get_posn_pid_cb(const shared_ptr<roboclaw::srv::GetPositionPid::Request> request,
+        shared_ptr<roboclaw::srv::GetPositionPid::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->read_position_pid(driver::BASE_ADDRESS + request->node, request->channel);
+        position_pid_t pid;
+        while (!mRoboclaw->get_position_pid(driver::BASE_ADDRESS + request->node, request->channel, pid))
+        { 
+            std::this_thread::sleep_for(std::chrono::milliseconds(2)); 
+        }
+        response->success = true;
+        response->p = pid.p;
+        response->i = pid.i;
+        response->d = pid.d;
+        response->max_i = pid.max_i;
+        response->deadzone = pid.deadzone;
+        response->max_pos = pid.max_pos;
+        response->min_pos = pid.min_pos;
+    }
+
+    void RoboclawCore::get_vel_pid_cb(const shared_ptr<roboclaw::srv::GetVelocityPid::Request> request,
+        shared_ptr<roboclaw::srv::GetVelocityPid::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->read_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel);
+        velocity_pid_t pid;
+        while (!mRoboclaw->get_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel, pid))
+        { 
+            std::this_thread::sleep_for(std::chrono::milliseconds(2)); 
+        }
+        response->success = true;
+        response->p = pid.p;
+        response->i = pid.i;
+        response->d = pid.d;
+        response->qpps = pid.qpps;
+    }
+
+    void RoboclawCore::set_posn_pid_cb(const shared_ptr<roboclaw::srv::SetPositionPid::Request> request,
+        shared_ptr<roboclaw::srv::SetPositionPid::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        position_pid_t pid;
+        pid.p = request->p;
+        pid.i = request->i;
+        pid.d = request->d;
+        pid.max_i = request->max_i;
+        pid.deadzone = request->deadzone;
+        pid.max_pos = request->max_pos;
+        pid.min_pos = request->min_pos;
+        mRoboclaw->set_position_pid(driver::BASE_ADDRESS + request->node, request->channel, pid);
+
+        response->success = true;
+    }
+
+    void RoboclawCore::set_vel_pid_cb(const shared_ptr<roboclaw::srv::SetVelocityPid::Request> request,
+        shared_ptr<roboclaw::srv::SetVelocityPid::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        velocity_pid_t pid;
+        pid.p = request->p;
+        pid.i = request->i;
+        pid.d = request->d;
+        pid.qpps = request->qpps;
+        mRoboclaw->set_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel, pid);
+
+        response->success = true;
+    }
+
+    void RoboclawCore::reset_encoder_cb(const shared_ptr<roboclaw::srv::ResetEncoder::Request> request,
+        shared_ptr<roboclaw::srv::ResetEncoder::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->reset_encoder(driver::BASE_ADDRESS + request->node, request->channel, request->value);
+
+        response->success = true;
+        return;
+    }
+
+    void RoboclawCore::reset_motor_cb(const shared_ptr<roboclaw::srv::ResetMotor::Request> request,
+        shared_ptr<roboclaw::srv::ResetMotor::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->set_duty_single(driver::BASE_ADDRESS + request->node, request->channel, request->pwm_value);
+
+        response->success = true;
+        return;
+
+    }
+    
     void RoboclawCore::timer_callback() {
 
         // Request data

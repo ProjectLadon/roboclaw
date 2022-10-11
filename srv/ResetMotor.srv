@@ -2,7 +2,7 @@
 
 uint8 node 
 uint8 channel
-int32 pwm_value 0
+int16 pwm_value 0
 ---
 bool success
 string error "success"

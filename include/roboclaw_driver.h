@@ -33,6 +33,7 @@
 #include <memory>
 #include <tuple>
 #include <variant>
+#include <functional>
 
 #include "rclcpp/rclcpp.hpp"
 #include <boost/thread/mutex.hpp>
@@ -180,30 +181,6 @@ namespace roboclaw {
         WriteUserEEPROM         = 253, // Write User EEPROM Memory Location
     };
 
-    enum CommandType : std::uint8_t
-    {
-        SetVelocity,
-        SetVelocitySingle,
-        SetDuty,
-        SetDutySingle,
-        SetPosition,
-        SetPositionSingle,
-        ResetEncoder,
-        ResetMotor,
-        GetLogicVoltage,
-        GetMotorVoltage,
-        GetMotorCurrents,
-        GetEncoders,
-        GetVelocities,
-        GetPositionErrors,
-        GetVersion,
-        GetStatus,
-        GetVelocityPID,
-        GetPositionPID,
-        SetVelocityPID,
-        SetPositionPID,
-    };
-
     typedef struct velocity_pid_t
     {
         uint32_t qpps;
@@ -223,21 +200,8 @@ namespace roboclaw {
         float d;
     } position_pid_t;
 
-    typedef std::pair<int32_t, int32_t> cmd_pair_t;
-    typedef std::shared_ptr<velocity_pid_t> velocity_pid_ptr_t;
-    typedef std::shared_ptr<position_pid_t> position_pid_ptr_t;
-
-    typedef std::variant<int32_t, cmd_pair_t, 
-        velocity_pid_ptr_t, position_pid_ptr_t> cmd_data_t;
-    
-    typedef struct cmd_t
-    {
-        cmd_t() {};
-        CommandType cmd;
-        uint8_t     address;
-        uint8_t     channel;
-        cmd_data_t  data;
-    } cmd_t;
+    typedef std::function<void(void)> cmd_func_t;
+    typedef std::pair<uint8_t, cmd_func_t> cmd_t;
 
     class driver 
     {
@@ -253,15 +217,15 @@ namespace roboclaw {
 
         void set_timeout_ms(const uint32_t to);
 
-        void set_velocity(uint8_t address, std::pair<int, int> speed);
-        void set_velocity_single(uint8_t address, uint8_t channel, int speed);
-        void set_duty(uint8_t address, std::pair<int, int> duty);
-        void set_duty_single(uint8_t address, uint8_t channel, int duty);
-        void set_position(uint8_t address, std::pair<int, int> position);
-        void set_position_single(uint8_t address, uint8_t channel, int position);
+        void set_velocity(uint8_t address, std::pair<int32_t, int32_t> speed);
+        void set_velocity_single(uint8_t address, uint8_t channel, int32_t speed);
+        void set_duty(uint8_t address, std::pair<int16_t, int16_t> duty);
+        void set_duty_single(uint8_t address, uint8_t channel, int16_t duty);
+        void set_position(uint8_t address, std::pair<int32_t, int32_t> position);
+        void set_position_single(uint8_t address, uint8_t channel, int32_t position);
         void reset_encoder(uint8_t address, uint8_t channel, int32_t value);
-        void set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t &k);
-        void set_position_pid(uint8_t address, uint8_t channel, position_pid_t &k);
+        void set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t k);
+        void set_position_pid(uint8_t address, uint8_t channel, position_pid_t k);
 
         // TODO: change this mess to take some proper callbacks
         void read_version(uint8_t address);
@@ -347,26 +311,26 @@ namespace roboclaw {
 
         void worker();
         
-        void exec_set_velocity(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_velocity_single(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_duty(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_duty_single(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_position(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_position_single(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_reset_encoder(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_velocity_pid(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_set_position_pid(uint8_t address, uint8_t channel, cmd_data_t &data);
+        void exec_set_velocity(uint8_t address, std::pair<int32_t, int32_t> speed);
+        void exec_set_velocity_single(uint8_t address, uint8_t channel, int32_t speed);
+        void exec_set_duty(uint8_t address, std::pair<int16_t, int16_t> duty);
+        void exec_set_duty_single(uint8_t address, uint8_t channel, int16_t duty);
+        void exec_set_position(uint8_t address, std::pair<int32_t, int32_t> position);
+        void exec_set_position_single(uint8_t address, uint8_t channel, int32_t position);
+        void exec_reset_encoder(uint8_t address, uint8_t channel, int32_t value);
+        void exec_set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t pid);
+        void exec_set_position_pid(uint8_t address, uint8_t channel, position_pid_t pid);
 
-        void exec_read_version(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_encoders(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_velocity(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_logic_voltage(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_motor_voltage(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_motor_currents(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_position_errors(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_status(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_velocity_pid(uint8_t address, uint8_t channel, cmd_data_t &data);
-        void exec_read_position_pid(uint8_t address, uint8_t channel, cmd_data_t &data);
+        void exec_read_version(uint8_t address);
+        void exec_read_encoders(uint8_t address);
+        void exec_read_velocity(uint8_t address);
+        void exec_read_logic_voltage(uint8_t address);
+        void exec_read_motor_voltage(uint8_t address);
+        void exec_read_motor_currents(uint8_t address);
+        void exec_read_position_errors(uint8_t address);
+        void exec_read_status(uint8_t address);
+        void exec_read_velocity_pid(uint8_t address, uint8_t channel);
+        void exec_read_position_pid(uint8_t address, uint8_t channel);
 
         uint32_t decode_uint32(uint8_t *buf);
         int32_t decode_int32(uint8_t *buf);

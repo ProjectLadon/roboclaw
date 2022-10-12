@@ -1,0 +1,8 @@
+# Reset the errors for the given node and motor
+
+uint8 node 
+uint8 channel
+int32 pwm_value 0
+---
+bool success
+string error "success"

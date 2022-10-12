@@ -1,0 +1,11 @@
+# Fetch the velocity PID constants for the given node and motor
+
+uint8 node 
+uint8 channel
+---
+bool success 
+string error "success"
+uint32 qpps
+float32 p 
+float32 i 
+float32 d

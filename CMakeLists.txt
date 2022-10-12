@@ -40,6 +40,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorVoltsAmps.msg"
         "msg/EncoderVelocity.msg"
         "msg/Status.msg"
+        "srv/GetVelocityPid.srv"
+        "srv/SetVelocityPid.srv"
+        "srv/GetPositionPid.srv"
+        "srv/SetPositionPid.srv"
+        "srv/ResetEncoder.srv"
+        "srv/ResetMotor.srv"
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")

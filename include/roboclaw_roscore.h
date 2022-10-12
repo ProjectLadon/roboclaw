@@ -78,6 +78,7 @@ namespace roboclaw {
         vector<node_posn_limits_t> mPosnLimits;
         vector<pair<uint8_t, uint8_t>> mCmdThrottleLimit;
         vector<pair<uint8_t, uint8_t>> mCmdThrottleCounter;
+        uint32_t mTimeoutMs;
 
         // publishers
         vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mEncodersPub;

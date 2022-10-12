@@ -47,7 +47,6 @@ namespace roboclaw
         // Declare a couple of variables...
         std::string serial_port;
         int64_t baudrate = driver::DEFAULT_BAUDRATE;
-        uint32_t timeout = driver::DEFAULT_TIMEOUT_MS;
         uint32_t request_period = 100;
 
         // Read the parameters in, throw and error if the serial port name is short
@@ -58,7 +57,7 @@ namespace roboclaw
         }
         this->get_parameter("baudrate", baudrate);
         this->get_parameter("num_claws", mClawCnt);
-        this->get_parameter("timeout_ms", timeout);
+        this->get_parameter("timeout_ms", mTimeoutMs);
         this->get_parameter("data_request_period_ms", request_period);
 
         // get position limits
@@ -97,7 +96,7 @@ namespace roboclaw
         }
 
         // initialize the driver
-        mRoboclaw = new driver(serial_port, baudrate, timeout, this);
+        mRoboclaw = new driver(serial_port, baudrate, mTimeoutMs, this);
 
         mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
 
@@ -312,9 +311,17 @@ namespace roboclaw
         }
         mRoboclaw->read_position_pid(driver::BASE_ADDRESS + request->node, request->channel);
         position_pid_t pid;
-        while (!mRoboclaw->get_position_pid(driver::BASE_ADDRESS + request->node, request->channel, pid))
+        uint32_t cnt = 0;
+        while ((cnt < mTimeoutMs ) and (!mRoboclaw->get_position_pid(driver::BASE_ADDRESS + request->node, request->channel, pid)))
         { 
-            std::this_thread::sleep_for(std::chrono::milliseconds(2)); 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+            cnt++;
+        }
+        if (cnt >= mTimeoutMs)
+        {
+            response->success = false;
+            response->error = "Request timed out";
+            return;
         }
         response->success = true;
         response->p = pid.p;
@@ -337,9 +344,17 @@ namespace roboclaw
         }
         mRoboclaw->read_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel);
         velocity_pid_t pid;
-        while (!mRoboclaw->get_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel, pid))
+        uint32_t cnt = 0;
+        while ((cnt < mTimeoutMs ) and (!mRoboclaw->get_velocity_pid(driver::BASE_ADDRESS + request->node, request->channel, pid)))
         { 
-            std::this_thread::sleep_for(std::chrono::milliseconds(2)); 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+            cnt++;
+        }
+        if (cnt >= mTimeoutMs)
+        {
+            response->success = false;
+            response->error = "Request timed out";
+            return;
         }
         response->success = true;
         response->p = pid.p;

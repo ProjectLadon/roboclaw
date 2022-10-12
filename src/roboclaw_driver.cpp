@@ -725,6 +725,12 @@ namespace roboclaw {
                 catch(roboclaw::crc_exception &e)
                 {
                     RCLCPP_ERROR(log_node->get_logger(), "RoboClaw CRC error on node %d!", (std::get<1>(cmd) - driver::BASE_ADDRESS));
+                    RCLCPP_INFO(log_node->get_logger(), "Clearing input buffer");
+                    try
+                    {
+                        std::vector<char> tmp = serial->read(1000);
+                    }
+                    catch(timeout_exception &e) {}
                 } 
                 catch(timeout_exception &e)
                 {

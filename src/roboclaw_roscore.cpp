@@ -99,13 +99,6 @@ namespace roboclaw
         // initialize the driver
         mRoboclaw = new driver(serial_port, baudrate, timeout, this);
 
-        // zero all the encoders
-        for (int r = 0; r < mClawCnt; r++)
-        {
-            // Commenting this out because it's not something every one needs
-            // mRoboclaw->reset_encoders(driver::BASE_ADDRESS + r);
-        }
-
         mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
 
         for (uint8_t r = 0; r < mClawCnt; r++)

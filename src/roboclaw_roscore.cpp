@@ -42,12 +42,14 @@ namespace roboclaw
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int32_t>("num_claws", 1);       // Number of roboclaws connected
         this->declare_parameter<int32_t>("timeout_ms", driver::DEFAULT_TIMEOUT_MS);       // Serial timeout, in milliseconds
-        this->declare_parameter<int32_t>("data_request_period_ms", 100);    // period between position/current/voltage requests in ms
-
+        this->declare_parameter<float>("posn_hz", -1.0);    // frequency of position fetching
+        this->declare_parameter<float>("posn_err_hz", -1.0);    // frequency of position error fetching
+        this->declare_parameter<float>("velocity_hz", -1.0);    // frequency of velocity fetching
+        this->declare_parameter<float>("status_hz", -1.0);    // frequency of status fetching
+        this->declare_parameter<float>("volt_amp_hz", -1.0);    // frequency of volt/amp fetching
         // Declare a couple of variables...
         std::string serial_port;
         int64_t baudrate = driver::DEFAULT_BAUDRATE;
-        uint32_t request_period = 100;
 
         // Read the parameters in, throw and error if the serial port name is short
         this->get_parameter("serial_port", serial_port);
@@ -58,7 +60,6 @@ namespace roboclaw
         this->get_parameter("baudrate", baudrate);
         this->get_parameter("num_claws", mClawCnt);
         this->get_parameter("timeout_ms", mTimeoutMs);
-        this->get_parameter("data_request_period_ms", request_period);
 
         // get position limits
         for (int i = 0; i < mClawCnt; i++)
@@ -98,8 +99,6 @@ namespace roboclaw
         // initialize the driver
         mRoboclaw = new driver(serial_port, baudrate, mTimeoutMs, this);
 
-        mDataArrived = unique_ptr<vector<atomic<bool>>>(new vector<atomic<bool>>(mClawCnt));
-
         RCLCPP_INFO(this->get_logger(),  "Creating roboclaw services");
         mGetPosPIDSrv = this->create_service<roboclaw::srv::GetPositionPid>("~/get_position_pid", 
             function<void(const shared_ptr<roboclaw::srv::GetPositionPid::Request>,
@@ -129,7 +128,6 @@ namespace roboclaw
 
         for (uint8_t r = 0; r < mClawCnt; r++)
         {
-            mDataArrived->at(r) = false;
             RCLCPP_INFO(this->get_logger(),  "Creating publishers for node %d", r);
             // create publishers and subscribers
             mEncodersPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderSteps>(
@@ -189,9 +187,22 @@ namespace roboclaw
         }
 
         // create periodic callback to trigger data fetching
-        mPubTimer = this->create_wall_timer(
-            (request_period * 1ms), bind(&RoboclawCore::timer_callback, this));
-            // 100ms, bind(&RoboclawCore::timer_callback, this));
+        float hz;
+        this->get_parameter("posn_hz", hz);
+        if (hz > 0.01) { mEncoderTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_encoder_cb, this)); }
+        this->get_parameter("posn_err_hz", hz);
+        if (hz > 0.01) { mEncoderErrTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_encoder_err_cb, this)); }
+        this->get_parameter("velocity_hz", hz);
+        if (hz > 0.01) { mVelocityTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_velocity_cb, this)); }
+        this->get_parameter("status_hz", hz);
+        if (hz > 0.01) { mStatusTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_status_cb, this)); }
+        this->get_parameter("volt_amp_hz", hz);
+        if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_volt_amp_cb, this)); }
 
         // Create worker thread to access serial port
         mRunEnable = true;
@@ -435,7 +446,8 @@ namespace roboclaw
 
     }
     
-    void RoboclawCore::timer_callback() {
+    void RoboclawCore::timer_encoder_cb() 
+    {
 
         // Request data
         if (mRoboclaw->is_queue_flooded())
@@ -446,13 +458,67 @@ namespace roboclaw
         for (int r = 0; r < mClawCnt; r++) 
         {
             mRoboclaw->read_encoders(driver::BASE_ADDRESS + r);
+        }
+    }
+    
+    void RoboclawCore::timer_velocity_cb() 
+    {
+
+        // Request data
+        if (mRoboclaw->is_queue_flooded())
+        {
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            return;
+        }
+        for (int r = 0; r < mClawCnt; r++) 
+        {
             mRoboclaw->read_velocity(driver::BASE_ADDRESS + r);
+        }
+    }
+
+    void RoboclawCore::timer_encoder_err_cb() 
+    {
+
+        // Request data
+        if (mRoboclaw->is_queue_flooded())
+        {
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            return;
+        }
+        for (int r = 0; r < mClawCnt; r++) 
+        {
+            mRoboclaw->read_position_errors(driver::BASE_ADDRESS + r);
+        }
+    }
+ 
+    void RoboclawCore::timer_status_cb() 
+    {
+
+        // Request data
+        if (mRoboclaw->is_queue_flooded())
+        {
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            return;
+        }
+        for (int r = 0; r < mClawCnt; r++) 
+        {
+            mRoboclaw->read_status(driver::BASE_ADDRESS + r);
+        }
+    }
+
+    void RoboclawCore::timer_volt_amp_cb() 
+    {
+        // Request data
+        if (mRoboclaw->is_queue_flooded())
+        {
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            return;
+        }
+        for (int r = 0; r < mClawCnt; r++) 
+        {
             mRoboclaw->read_motor_currents(driver::BASE_ADDRESS + r);
             mRoboclaw->read_motor_voltage(driver::BASE_ADDRESS + r);
             mRoboclaw->read_logic_voltage(driver::BASE_ADDRESS + r);
-            mRoboclaw->read_position_errors(driver::BASE_ADDRESS + r);
-            mRoboclaw->read_status(driver::BASE_ADDRESS + r);
-            mDataArrived->at(r) = false;
         }
     }
 

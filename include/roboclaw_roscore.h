@@ -71,7 +71,6 @@ namespace roboclaw {
         uint8_t mClawCnt;
 
         unique_ptr<thread> mPubWorkerThread;
-        unique_ptr<vector<atomic<bool>>> mDataArrived;
         bool mRunEnable;
 
         // position and other limits
@@ -102,7 +101,11 @@ namespace roboclaw {
         rclcpp::Service<roboclaw::srv::ResetEncoder>::SharedPtr     mResetEncoderSrv;
         rclcpp::Service<roboclaw::srv::ResetMotor>::SharedPtr       mResetMotorSrv;
 
-        rclcpp::TimerBase::SharedPtr mPubTimer;
+        rclcpp::TimerBase::SharedPtr mEncoderTimer;
+        rclcpp::TimerBase::SharedPtr mEncoderErrTimer;
+        rclcpp::TimerBase::SharedPtr mVelocityTimer;
+        rclcpp::TimerBase::SharedPtr mStatusTimer;
+        rclcpp::TimerBase::SharedPtr mVoltAmpTimer;
 
         // subscriber callbacks
         void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
@@ -132,7 +135,11 @@ namespace roboclaw {
             shared_ptr<roboclaw::srv::ResetMotor::Response> response);
 
         // timer callback & thread workers
-        void timer_callback();
+        void timer_encoder_cb();
+        void timer_velocity_cb();
+        void timer_encoder_err_cb();
+        void timer_status_cb();
+        void timer_volt_amp_cb();
         void pub_worker();
 
         // utility functions

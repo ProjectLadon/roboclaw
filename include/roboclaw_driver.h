@@ -234,6 +234,7 @@ namespace roboclaw {
         void read_logic_voltage(uint8_t address);
         void read_motor_voltage(uint8_t address);
         void read_motor_currents(uint8_t address);
+        void read_volt_current(uint8_t address);
         void read_position_errors(uint8_t address);
         void read_status(uint8_t address);
         void read_velocity_pid(uint8_t address, uint8_t channel);
@@ -327,6 +328,7 @@ namespace roboclaw {
         void exec_read_logic_voltage(uint8_t address);
         void exec_read_motor_voltage(uint8_t address);
         void exec_read_motor_currents(uint8_t address);
+        void exec_read_volt_current(uint8_t address);
         void exec_read_position_errors(uint8_t address);
         void exec_read_status(uint8_t address);
         void exec_read_velocity_pid(uint8_t address, uint8_t channel);

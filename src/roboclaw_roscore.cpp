@@ -120,7 +120,7 @@ namespace roboclaw
             function<void(const shared_ptr<roboclaw::srv::ResetEncoder::Request>,
             shared_ptr<roboclaw::srv::ResetEncoder::Response>)>(
             bind<void>(&RoboclawCore::reset_encoder_cb, this, std::placeholders::_1, std::placeholders::_2)));
-        mResetMotorSrv = this->create_service<roboclaw::srv::ResetMotor>("~/reset_encoder", 
+        mResetMotorSrv = this->create_service<roboclaw::srv::ResetMotor>("~/reset_motor", 
             function<void(const shared_ptr<roboclaw::srv::ResetMotor::Request>,
             shared_ptr<roboclaw::srv::ResetMotor::Response>)>(
             bind<void>(&RoboclawCore::reset_motor_cb, this, std::placeholders::_1, std::placeholders::_2)));
@@ -516,9 +516,7 @@ namespace roboclaw
         }
         for (int r = 0; r < mClawCnt; r++) 
         {
-            mRoboclaw->read_motor_currents(driver::BASE_ADDRESS + r);
-            mRoboclaw->read_motor_voltage(driver::BASE_ADDRESS + r);
-            mRoboclaw->read_logic_voltage(driver::BASE_ADDRESS + r);
+            mRoboclaw->read_volt_current(driver::BASE_ADDRESS + r);
         }
     }
 

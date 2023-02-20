@@ -180,13 +180,13 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         (channel == 1) ? velocity_pid_ready[address].first = false : velocity_pid_ready[address].second = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_velocity_pid, this, address, channel)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity_pid");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity_pid");
     }
     void driver::exec_read_velocity_pid(uint8_t address, uint8_t channel)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[16];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_velocity_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_velocity_pid on channel %d", channel);
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::ReadVelPIDM1 : (uint8_t)AdvMotorControlCmds::ReadVelPIDM2;
 
         txrx(address, command, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
@@ -205,14 +205,14 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         (channel == 1) ? position_pid_ready[address].first = false : position_pid_ready[address].second = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_position_pid, this, address, channel)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_position_pid");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_position_pid");
     }
     void driver::exec_read_position_pid(uint8_t address, uint8_t channel)
     {
         
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[28];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_position_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_position_pid on channel %d", channel);
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::ReadPosPIDM1 : (uint8_t)AdvMotorControlCmds::ReadPosPIDM2;
 
         txrx(address, command, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
@@ -234,13 +234,13 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         versions_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_version, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_version");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_version");
     }
     void driver::exec_read_version(uint8_t address)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[48];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_version");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_version");
 
         txrx(address, (uint8_t)StatusCmds::ReadFirmwareVersion, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
@@ -256,13 +256,13 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         status_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_status, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_status");
     }
     void driver::exec_read_status(uint8_t address)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[4];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_status");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_status");
 
         txrx(address, (uint8_t)StatusCmds::ReadStatus, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
@@ -278,13 +278,13 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         encoders_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_encoders, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_encoders");
     }
     void driver::exec_read_encoders(uint8_t address)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[8];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_encoders");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_encoders");
 
         txrx(address, (uint8_t)EncoderCmds::ReadEncoderCnts, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
@@ -301,22 +301,17 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         velocities_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_velocity, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity for node %d", address - driver::BASE_ADDRESS);
     }
     void driver::exec_read_velocity(uint8_t address)
     {
         // TODO: Fix this function so it handles velocity signs correctly.
         boost::mutex::scoped_lock dlock(data_mutex);
-        uint8_t rx_buffer[5];
-        // RCLCPP_INFO(log_node->get_logger(), "Executing read_velocity");
+        uint8_t rx_buffer[8];
 
-        txrx(address, (uint8_t)EncoderCmds::ReadSpdM1, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
-
-        int32_t e1 = decode_int32(rx_buffer);
-
-        txrx(address, (uint8_t)EncoderCmds::ReadSpdM2, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
-
-        int32_t e2 = decode_int32(rx_buffer);
+        txrx(address, (uint8_t)EncoderCmds::ReadAvgSpeeds, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        int32_t e1 = decode_int32(&rx_buffer[0]);
+        int32_t e2 = decode_int32(&rx_buffer[4]);
 
         velocities[address] = std::pair<int, int>((int)e1, (int)e2);
         velocities_ready[address] = true;
@@ -328,7 +323,7 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         posn_err_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_position_errors, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_position_errors");
     }
     void driver::exec_read_position_errors(uint8_t address)
     {
@@ -351,7 +346,7 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         motor_currents_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_motor_currents, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_currents");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_currents");
     }
     void driver::exec_read_motor_currents(uint8_t address)
     {
@@ -374,7 +369,7 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         logic_voltages_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_logic_voltage, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_logic_voltages");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_logic_voltages");
     }
     void driver::exec_read_logic_voltage(uint8_t address)
     {
@@ -396,13 +391,13 @@ namespace roboclaw {
         boost::mutex::scoped_lock dlock(data_mutex);
         motor_voltages_ready[address] = false;
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_motor_voltage, this, address)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_voltages");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_voltages");
     }
     void driver::exec_read_motor_voltage(uint8_t address)
     {
         boost::mutex::scoped_lock dlock(data_mutex);
         uint8_t rx_buffer[2];
-        RCLCPP_INFO(log_node->get_logger(), "Executing read_motor_voltages");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_motor_voltages");
 
         txrx(address, (uint8_t)StatusCmds::ReadMainVoltage, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
 
@@ -412,17 +407,57 @@ namespace roboclaw {
         motor_voltages_ready[address] = true;
     }
 
+    void driver::read_volt_current(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        motor_currents_ready[address] = false;
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_volt_current, this, address)));
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_volt_current");
+    }
+    void driver::exec_read_volt_current(uint8_t address)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        uint8_t rx_buffer[4];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_volt_current");
+
+        // read motor currents
+        txrx(address, (uint8_t)StatusCmds::ReadMotorCurrents, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        int16_t e1 = decode_int16(&rx_buffer[0]);
+        int16_t e2 = decode_int16(&rx_buffer[2]);
+        
+        motor_currents[address] = std::pair<float, float>(((float)e1)/AMPS_SCALE, ((float)e2)/AMPS_SCALE);
+        motor_currents_ready[address] = true;
+
+        // read logic voltage
+        txrx(address, (uint8_t)StatusCmds::ReadLogicVoltage, nullptr, 0, rx_buffer, 2, false, true);
+
+        uint16_t v1 = decode_uint16(&rx_buffer[0]);
+
+        logic_voltages[address] = (float)v1/VOLTS_SCALE;
+        logic_voltages_ready[address] = true;
+
+        // read motor voltage
+        txrx(address, (uint8_t)StatusCmds::ReadMainVoltage, nullptr, 0, rx_buffer, 2, false, true);
+
+        v1 = decode_uint16(&rx_buffer[0]);
+
+        motor_voltages[address] = (float)v1/VOLTS_SCALE;
+        motor_voltages_ready[address] = true;
+    }
+
     void driver::reset_encoder(uint8_t address, uint8_t channel, int32_t value) 
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_reset_encoder, this, address, channel, value)));
         
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing reset_encoders");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing reset_encoders");
     }
     void driver::exec_reset_encoder(uint8_t address, uint8_t channel, int32_t value) 
     {
         uint8_t rx_buffer[1];
-        RCLCPP_INFO(log_node->get_logger(), "Executing reset_encoders");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing reset_encoders");
         uint8_t command = (channel == 1) ? (uint8_t)EncoderCmds::ResetM1 : (uint8_t)EncoderCmds::ResetM2;
 
         uint8_t tx_buffer[4];
@@ -435,13 +470,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_velocity, this, address, speed)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity");
     }
     void driver::exec_set_velocity(uint8_t address, std::pair<int32_t, int32_t> speed)
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[8];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity");
 
         // RoboClaw expects big endian / MSB first
         encode_int32(speed.first, &tx_buffer[0]);
@@ -454,13 +489,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_velocity_single, this, address, channel, speed)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single");
     }
     void driver::exec_set_velocity_single(uint8_t address, uint8_t channel, int32_t speed) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[4];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single");
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetSpdM1 : (uint8_t)AdvMotorControlCmds::SetSpdM2;
 
         // RoboClaw expects big endian / MSB first
@@ -473,13 +508,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_position, this, address, position)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position");
     }
     void driver::exec_set_position(uint8_t address, std::pair<int32_t, int32_t> position) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[9];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_position");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_position");
         encode_int32(position.first, &tx_buffer[0]);
         encode_int32(position.second, &tx_buffer[4]);
         tx_buffer[8] = 1;   // Buffer argument -- implements this cmd immediately
@@ -491,7 +526,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_position_single, this, address, channel, position)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single address: %d channel: %d position: %d", address, channel, position);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_position_single address: %d channel: %d position: %d", address, channel, position);
     }
     void driver::exec_set_position_single(uint8_t address, uint8_t channel, int32_t position)
     {
@@ -512,13 +547,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_duty, this, address, duty)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty");
     }
     void driver::exec_set_duty(uint8_t address, std::pair<int16_t, int16_t> duty) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[4];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_duty");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_duty");
     
         // RoboClaw expects big endian / MSB first
         encode_int16(duty.first, &tx_buffer[0]);
@@ -531,7 +566,7 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_duty_single, this, address, channel, duty)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single address: %d channel: %d duty: %d", address, channel, duty);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_duty_single address: %d channel: %d duty: %d", address, channel, duty);
     }
     void driver::exec_set_duty_single(uint8_t address, uint8_t channel, int16_t duty) 
     {
@@ -551,13 +586,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_velocity_pid, this, address, channel, k)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_velocity_pid on channel %d", channel);
     }
     void driver::exec_set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t pid)
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on channel %d", channel);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetVelPIDM1 : (uint8_t)AdvMotorControlCmds::SetVelPIDM2;
 
@@ -573,13 +608,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_position_pid, this, address, channel, k)));
-        RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_position_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_position_pid on channel %d", channel);
     }
     void driver::exec_set_position_pid(uint8_t address, uint8_t channel, position_pid_t pid)
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on channel %d", channel);
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on channel %d", channel);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetPosPIDM1 : (uint8_t)AdvMotorControlCmds::SetPosPIDM2;
 

@@ -227,6 +227,33 @@ namespace roboclaw {
         (channel == 1) ? position_pid_ready[address].first = true : position_pid_ready[address].second = true;
         (channel == 1) ? position_pid_data[address].first = output : position_pid_data[address].second = output;
     }
+    
+    // Write current settings to EEPROM
+    void driver::write_eeprom(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_write_eeprom, this, address)));
+    }
+    void driver::exec_write_eeprom(uint8_t address)
+    {
+        uint8_t rx_buffer[1];
+        txrx(address, (uint8_t)StatusCmds::WriteSettingsEEPROM, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, false);
+    }
+
+    // Restores settings to EEPROM values
+    void driver::read_eeprom(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_eeprom, this, address)));
+    }
+    void driver::exec_read_eeprom(uint8_t address)
+    {
+        uint8_t rx_buffer[4];
+        txrx(address, (uint8_t)StatusCmds::WriteSettingsEEPROM, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+    }
+
 
     void driver::read_version(uint8_t address)
     {

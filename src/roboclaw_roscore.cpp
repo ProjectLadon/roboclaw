@@ -124,6 +124,14 @@ namespace roboclaw
             function<void(const shared_ptr<roboclaw::srv::ResetMotor::Request>,
             shared_ptr<roboclaw::srv::ResetMotor::Response>)>(
             bind<void>(&RoboclawCore::reset_motor_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mWriteEEPROMSrv = this->create_service<roboclaw::srv::WriteEeprom>("~/write_eeprom", 
+            function<void(const shared_ptr<roboclaw::srv::WriteEeprom::Request>,
+            shared_ptr<roboclaw::srv::WriteEeprom::Response>)>(
+            bind<void>(&RoboclawCore::write_eeprom_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mReadEEPROMSrv = this->create_service<roboclaw::srv::ReadEeprom>("~/read_eeprom", 
+            function<void(const shared_ptr<roboclaw::srv::ReadEeprom::Request>,
+            shared_ptr<roboclaw::srv::ReadEeprom::Response>)>(
+            bind<void>(&RoboclawCore::read_eeprom_cb, this, std::placeholders::_1, std::placeholders::_2)));
 
 
         for (uint8_t r = 0; r < mClawCnt; r++)
@@ -446,6 +454,36 @@ namespace roboclaw
 
     }
     
+    void RoboclawCore::read_eeprom_cb(const shared_ptr<roboclaw::srv::ReadEeprom::Request> request,
+        shared_ptr<roboclaw::srv::ReadEeprom::Response> response)
+    {
+        if(bad_inputs(request->node, 1)) 
+        {
+            response->success = false;
+            return;
+        }
+        mRoboclaw->read_eeprom(driver::BASE_ADDRESS + request->node);
+
+        response->success = true;
+        return;
+
+    }
+    
+    void RoboclawCore::write_eeprom_cb(const shared_ptr<roboclaw::srv::WriteEeprom::Request> request,
+        shared_ptr<roboclaw::srv::WriteEeprom::Response> response)
+    {
+        if(bad_inputs(request->node, 1)) 
+        {
+            response->success = false;
+            return;
+        }
+        mRoboclaw->read_eeprom(driver::BASE_ADDRESS + request->node);
+
+        response->success = true;
+        return;
+
+    }
+
     void RoboclawCore::timer_encoder_cb() 
     {
 

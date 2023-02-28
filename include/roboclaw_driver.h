@@ -228,6 +228,8 @@ namespace roboclaw {
         void set_position_pid(uint8_t address, uint8_t channel, position_pid_t k);
 
         // TODO: change this mess to take some proper callbacks
+        void write_eeprom(uint8_t address);
+        void read_eeprom(uint8_t address);
         void read_version(uint8_t address);
         void read_encoders(uint8_t address);
         void read_velocity(uint8_t address);
@@ -322,6 +324,8 @@ namespace roboclaw {
         void exec_set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t pid);
         void exec_set_position_pid(uint8_t address, uint8_t channel, position_pid_t pid);
 
+        void exec_write_eeprom(uint8_t address);
+        void exec_read_eeprom(uint8_t address);
         void exec_read_version(uint8_t address);
         void exec_read_encoders(uint8_t address);
         void exec_read_velocity(uint8_t address);

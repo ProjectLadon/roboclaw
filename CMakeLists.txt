@@ -46,6 +46,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/SetPositionPid.srv"
         "srv/ResetEncoder.srv"
         "srv/ResetMotor.srv"
+        "srv/WriteEeprom.srv"
+        "srv/ReadEeprom.srv"
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")

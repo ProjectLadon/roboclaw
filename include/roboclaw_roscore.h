@@ -51,6 +51,8 @@
 #include "roboclaw/srv/set_velocity_pid.hpp"
 #include "roboclaw/srv/reset_encoder.hpp"
 #include "roboclaw/srv/reset_motor.hpp"
+#include "roboclaw/srv/read_eeprom.hpp"
+#include "roboclaw/srv/write_eeprom.hpp"
 
 using namespace std::chrono_literals;
 using namespace std;
@@ -80,18 +82,18 @@ namespace roboclaw {
         uint32_t mTimeoutMs;
 
         // publishers
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mEncodersPub;
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr> mErrorsPub;
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocity>::SharedPtr> mVelocityPub;
-        vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr> mVoltsAmpsPub;
-        vector<rclcpp::Publisher<roboclaw::msg::Status>::SharedPtr> mStatusPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr>       mEncodersPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr>       mErrorsPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocity>::SharedPtr>    mVelocityPub;
+        vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr>     mVoltsAmpsPub;
+        vector<rclcpp::Publisher<roboclaw::msg::Status>::SharedPtr>             mStatusPub;
 
         // subscribers
-        vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr> mDutyCmdSingleSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr> mVelCmdSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr> mVelCmdSingleSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr> mPosCmdSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr> mPosCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr>         mDutyCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr>           mVelCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr>     mVelCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr>           mPosCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr>     mPosCmdSingleSub;
 
         // services
         rclcpp::Service<roboclaw::srv::GetPositionPid>::SharedPtr   mGetPosPIDSrv;
@@ -100,6 +102,8 @@ namespace roboclaw {
         rclcpp::Service<roboclaw::srv::SetVelocityPid>::SharedPtr   mSetVelPIDSrv;
         rclcpp::Service<roboclaw::srv::ResetEncoder>::SharedPtr     mResetEncoderSrv;
         rclcpp::Service<roboclaw::srv::ResetMotor>::SharedPtr       mResetMotorSrv;
+        rclcpp::Service<roboclaw::srv::ReadEeprom>::SharedPtr       mReadEEPROMSrv;
+        rclcpp::Service<roboclaw::srv::WriteEeprom>::SharedPtr      mWriteEEPROMSrv;
 
         rclcpp::TimerBase::SharedPtr mEncoderTimer;
         rclcpp::TimerBase::SharedPtr mEncoderErrTimer;
@@ -133,6 +137,12 @@ namespace roboclaw {
         void reset_motor_cb(
             const shared_ptr<roboclaw::srv::ResetMotor::Request> request,
             shared_ptr<roboclaw::srv::ResetMotor::Response> response);
+        void read_eeprom_cb(
+            const shared_ptr<roboclaw::srv::ReadEeprom::Request> request,
+            shared_ptr<roboclaw::srv::ReadEeprom::Response> response);
+        void write_eeprom_cb(
+            const shared_ptr<roboclaw::srv::WriteEeprom::Request> request,
+            shared_ptr<roboclaw::srv::WriteEeprom::Response> response);
 
         // timer callback & thread workers
         void timer_encoder_cb();

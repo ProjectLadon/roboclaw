@@ -489,13 +489,13 @@ namespace roboclaw {
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
         command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_velocity_single, this, address, channel, speed)));
-        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueing set_velocity_single; address: %d, channel: %d, speed: %d", address, channel, speed);
     }
     void driver::exec_set_velocity_single(uint8_t address, uint8_t channel, int32_t speed) 
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[4];
-        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single");
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_single; address: %d, channel: %d, speed: %d", address, channel, speed);
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetSpdM1 : (uint8_t)AdvMotorControlCmds::SetSpdM2;
 
         // RoboClaw expects big endian / MSB first
@@ -592,7 +592,8 @@ namespace roboclaw {
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        // RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on channel %d", channel);
+        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on address %d channel %d with values qpps %ld, p %6.2f, i %6.2f, d %6.2f", 
+                    address, channel, pid.qpps, pid.p, pid.i, pid.d);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetVelPIDM1 : (uint8_t)AdvMotorControlCmds::SetVelPIDM2;
 
@@ -614,7 +615,8 @@ namespace roboclaw {
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        // RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on channel %d", channel);
+        RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on address %d channel %d with values deadzone %ld, max_pos %ld, min_pos %ld, p %6.2f, i %6.2f, d %6.2f, max_i %6.2f", 
+                    address, channel, pid.deadzone, pid.max_pos, pid.min_pos, pid.p, pid.i, pid.d, pid.max_i);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetPosPIDM1 : (uint8_t)AdvMotorControlCmds::SetPosPIDM2;
 

@@ -592,7 +592,7 @@ namespace roboclaw {
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on address %d channel %d with values qpps %ld, p %6.2f, i %6.2f, d %6.2f", 
+        RCLCPP_INFO(log_node->get_logger(), "Executing set_velocity_pid on address %d channel %d with values qpps %u, p %6.4f, i %6.4f, d %6.4f", 
                     address, channel, pid.qpps, pid.p, pid.i, pid.d);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetVelPIDM1 : (uint8_t)AdvMotorControlCmds::SetVelPIDM2;
@@ -615,7 +615,7 @@ namespace roboclaw {
     {
         uint8_t rx_buffer[1];
         uint8_t tx_buffer[16];
-        RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on address %d channel %d with values deadzone %ld, max_pos %ld, min_pos %ld, p %6.2f, i %6.2f, d %6.2f, max_i %6.2f", 
+        RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on address %d channel %d with values deadzone %u, max_pos %d, min_pos %d, p %6.4f, i %6.4f, d %6.4f, max_i %6.4f", 
                     address, channel, pid.deadzone, pid.max_pos, pid.min_pos, pid.p, pid.i, pid.d, pid.max_i);
     
         uint8_t command = (channel == 1) ? (uint8_t)AdvMotorControlCmds::SetPosPIDM1 : (uint8_t)AdvMotorControlCmds::SetPosPIDM2;

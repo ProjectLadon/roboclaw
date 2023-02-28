@@ -22,6 +22,7 @@
  */
 
 #include "roboclaw_roscore.h"
+#include "rclcpp/subscription_options.hpp"
 
 #include <map>
 #include <string>
@@ -35,9 +36,52 @@ using namespace std::chrono_literals;
 namespace roboclaw 
 {
 
+    #define POSN_LIMIT_NAMES(i) string limit_param_base = "posn_limits.node" + to_string(i) + ".chan";\
+                                string throttle_param_1 = "rate_limit.node" + to_string(i) + ".chan1";\
+                                string throttle_param_2 = "rate_limit.node" + to_string(i) + ".chan2";\
+                                string limit_param_upper_1 = limit_param_base + "1.upper_limit";\
+                                string limit_param_upper_2 = limit_param_base + "2.upper_limit";\
+                                string limit_param_lower_1 = limit_param_base + "1.lower_limit";\
+                                string limit_param_lower_2 = limit_param_base + "2.lower_limit";\
+                                string limit_param_center_1 = limit_param_base + "1.center";\
+                                string limit_param_center_2 = limit_param_base + "2.center";
+
+    #define ENABLE_NAMES(i) string enable_param_base = "enable.node" + to_string(i) + ".";\
+                            string enable_posn_1 = enable_param_base + "position.chan1";\
+                            string enable_posn_2 = enable_param_base + "position.chan2";\
+                            string enable_posn_both = enable_param_base + "position.both";\
+                            string enable_velocity_1 = enable_param_base + "velocity.chan1";\
+                            string enable_velocity_2 = enable_param_base + "velocity.chan2";\
+                            string enable_velocity_both = enable_param_base + "velocity.both";\
+                            string enable_duty_1 = enable_param_base + "duty.chan1";\
+                            string enable_duty_2 = enable_param_base + "duty.chan2";
+
     RoboclawCore::RoboclawCore(string name) : Node(name)
     {
-        // Declare the parameters
+        declare_core_params();
+        fetch_core_params();
+        fetch_position_limits();
+        create_services();
+        create_publishers();
+        create_subscribers();
+        create_timers();
+
+        // Create worker thread to access serial port
+        mRunEnable = true;
+        mPubWorkerThread = unique_ptr<thread>(new thread(&RoboclawCore::pub_worker, this));
+    }
+
+    RoboclawCore::~RoboclawCore() {
+        for (int r = 0; r < mClawCnt; r++)
+        {
+            mRoboclaw->set_duty(driver::BASE_ADDRESS + r, std::pair<int, int>(0, 0));
+        }
+        mRunEnable = false;
+        mPubWorkerThread->join();
+    }
+
+    void RoboclawCore::declare_core_params()
+    {
         this->declare_parameter<std::string>("serial_port", "");    // serial device name
         this->declare_parameter<int64_t>("baudrate", driver::DEFAULT_BAUDRATE);   // default baud rate
         this->declare_parameter<int32_t>("num_claws", 1);       // Number of roboclaws connected
@@ -47,6 +91,34 @@ namespace roboclaw
         this->declare_parameter<float>("velocity_hz", -1.0);    // frequency of velocity fetching
         this->declare_parameter<float>("status_hz", -1.0);    // frequency of status fetching
         this->declare_parameter<float>("volt_amp_hz", -1.0);    // frequency of volt/amp fetching
+        this->declare_parameter<bool>("statistics_enable", false);   // enable/disable statistics
+
+        this->get_parameter("num_claws", mClawCnt);
+        for (int i = 0; i < mClawCnt; i++)
+        {
+            ENABLE_NAMES(i);
+            this->declare_parameter<bool>(enable_posn_1, true);
+            this->declare_parameter<bool>(enable_posn_2, true);
+            this->declare_parameter<bool>(enable_posn_both, true);
+            this->declare_parameter<bool>(enable_velocity_1, true);
+            this->declare_parameter<bool>(enable_velocity_2, true);
+            this->declare_parameter<bool>(enable_velocity_both, true);
+            this->declare_parameter<bool>(enable_duty_1, true);
+            this->declare_parameter<bool>(enable_duty_2, true);
+            POSN_LIMIT_NAMES(i);
+            this->declare_parameter<int32_t>(limit_param_upper_1, numeric_limits<int32_t>::max());
+            this->declare_parameter<int32_t>(limit_param_upper_2, numeric_limits<int32_t>::max());
+            this->declare_parameter<int32_t>(limit_param_lower_1, numeric_limits<int32_t>::min());
+            this->declare_parameter<int32_t>(limit_param_lower_2, numeric_limits<int32_t>::min());
+            this->declare_parameter<int32_t>(limit_param_center_1, 0);
+            this->declare_parameter<int32_t>(limit_param_center_2, 0);
+            this->declare_parameter<uint8_t>(throttle_param_1, 0);
+            this->declare_parameter<uint8_t>(throttle_param_2, 0);
+        }
+    }
+
+    void RoboclawCore::fetch_core_params()
+    {
         // Declare a couple of variables...
         std::string serial_port;
         int64_t baudrate = driver::DEFAULT_BAUDRATE;
@@ -58,29 +130,18 @@ namespace roboclaw
             throw std::runtime_error("Must specify serial port");
         }
         this->get_parameter("baudrate", baudrate);
-        this->get_parameter("num_claws", mClawCnt);
         this->get_parameter("timeout_ms", mTimeoutMs);
 
+        // initialize the driver
+        mRoboclaw = new driver(serial_port, baudrate, mTimeoutMs, this);
+    }
+
+    void RoboclawCore::fetch_position_limits()
+    {
         // get position limits
         for (int i = 0; i < mClawCnt; i++)
         {
-            string limit_param_base = "posn_limits.node" + to_string(i) + ".chan";
-            string throttle_param_1 = "rate_limit.node" + to_string(i) + ".chan1";
-            string throttle_param_2 = "rate_limit.node" + to_string(i) + ".chan2";
-            string limit_param_upper_1 = limit_param_base + "1.upper_limit";
-            string limit_param_upper_2 = limit_param_base + "2.upper_limit";
-            string limit_param_lower_1 = limit_param_base + "1.lower_limit";
-            string limit_param_lower_2 = limit_param_base + "2.lower_limit";
-            string limit_param_center_1 = limit_param_base + "1.center";
-            string limit_param_center_2 = limit_param_base + "2.center";
-            this->declare_parameter<int32_t>(limit_param_upper_1, numeric_limits<int32_t>::max());
-            this->declare_parameter<int32_t>(limit_param_upper_2, numeric_limits<int32_t>::max());
-            this->declare_parameter<int32_t>(limit_param_lower_1, numeric_limits<int32_t>::min());
-            this->declare_parameter<int32_t>(limit_param_lower_2, numeric_limits<int32_t>::min());
-            this->declare_parameter<int32_t>(limit_param_center_1, 0);
-            this->declare_parameter<int32_t>(limit_param_center_2, 0);
-            this->declare_parameter<uint8_t>(throttle_param_1, 0);
-            this->declare_parameter<uint8_t>(throttle_param_2, 0);
+            POSN_LIMIT_NAMES(i);
             int32_t max1, max2, min1, min2, center1, center2;
             uint8_t throttle_1, throttle_2;
             this->get_parameter(limit_param_upper_1, max1);
@@ -95,10 +156,10 @@ namespace roboclaw
             mCmdThrottleLimit.push_back(pair<uint8_t, uint8_t>(throttle_1, throttle_2));
             mCmdThrottleCounter.push_back(pair<uint8_t, uint8_t>(0, 0));
         }
+    }
 
-        // initialize the driver
-        mRoboclaw = new driver(serial_port, baudrate, mTimeoutMs, this);
-
+    void RoboclawCore::create_services()
+    {
         RCLCPP_INFO(this->get_logger(),  "Creating roboclaw services");
         mGetPosPIDSrv = this->create_service<roboclaw::srv::GetPositionPid>("~/get_position_pid", 
             function<void(const shared_ptr<roboclaw::srv::GetPositionPid::Request>,
@@ -132,8 +193,10 @@ namespace roboclaw
             function<void(const shared_ptr<roboclaw::srv::ReadEeprom::Request>,
             shared_ptr<roboclaw::srv::ReadEeprom::Response>)>(
             bind<void>(&RoboclawCore::read_eeprom_cb, this, std::placeholders::_1, std::placeholders::_2)));
+    }
 
-
+    void RoboclawCore::create_publishers()
+    {
         for (uint8_t r = 0; r < mClawCnt; r++)
         {
             RCLCPP_INFO(this->get_logger(),  "Creating publishers for node %d", r);
@@ -148,52 +211,122 @@ namespace roboclaw
                 "~/claw" + to_string(r) + "/velocity_out", 10));
             mStatusPub.emplace_back(this->create_publisher<roboclaw::msg::Status>(
                 "~/claw" + to_string(r) + "/status", 10));
-
-            RCLCPP_INFO(this->get_logger(),  "Creating subscribers for node %d", r);
-            mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocity>(
-                "~/claw" + to_string(r) + "/motor_vel_cmd", 10, 
-                function<void(const roboclaw::msg::MotorVelocity &)>(
-                bind(&RoboclawCore::velocity_callback, this, r, std::placeholders::_1)
-            )));
-            mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
-                "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan1", 10, 
-                function<void(const roboclaw::msg::MotorVelocitySingle &)>(
-                bind(&RoboclawCore::velocity_single_callback, this, r, 1, std::placeholders::_1)
-            )));
-            mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
-                "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan2", 10, 
-                function<void(const roboclaw::msg::MotorVelocitySingle &)>(
-                bind(&RoboclawCore::velocity_single_callback, this, r, 2, std::placeholders::_1)
-            )));
-            mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPosition>(
-                "~/claw" + to_string(r) + "/motor_pos_cmd", 10, 
-                function<void(const roboclaw::msg::MotorPosition &)>(
-                bind<void>(&RoboclawCore::position_callback, this, r, std::placeholders::_1)
-            )));
-            mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
-                "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan1", 10,  
-                function<void(const roboclaw::msg::MotorPositionSingle &)>(
-                bind<void>(&RoboclawCore::position_single_callback, this, r, 1, std::placeholders::_1)
-            )));
-            mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
-                "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan2", 10,  
-                function<void(const roboclaw::msg::MotorPositionSingle &)>(
-                bind<void>(&RoboclawCore::position_single_callback, this, r, 2, std::placeholders::_1)
-            )));
-            mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
-                "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan1", 10, 
-                function<void(const roboclaw::msg::MotorDutySingle &)>(
-                bind<void>(&RoboclawCore::duty_single_callback, this, r, 1, std::placeholders::_1)
-            )));
-            mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
-                "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan2", 10, 
-                function<void(const roboclaw::msg::MotorDutySingle &)>(
-                bind<void>(&RoboclawCore::duty_single_callback, this, r, 2, std::placeholders::_1)
-            )));
-
-            RCLCPP_INFO(this->get_logger(),  "Initialization complete for roboclaw %d", r);
         }
+    }
 
+    void RoboclawCore::create_subscribers()
+    {
+        for (uint8_t r = 0; r < mClawCnt; r++)
+        {
+            RCLCPP_INFO(this->get_logger(),  "Creating subscribers for node %d", r);
+            ENABLE_NAMES(r);
+            auto options = rclcpp::SubscriptionOptions();
+            bool stats_enable;
+            this->get_parameter("statistics_enable", stats_enable);
+
+            if (stats_enable) { options.topic_stats_options.state = rclcpp::TopicStatisticsState::Enable; }
+
+            bool sub;
+            this->get_parameter(enable_velocity_both, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_cmd";
+                mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocity>(
+                    "~/claw" + to_string(r) + "/motor_vel_cmd", 10, 
+                    function<void(const roboclaw::msg::MotorVelocity &)>(
+                        bind(&RoboclawCore::velocity_callback, this, r, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_velocity_1, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_single_cmd/chan1";
+                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+                    "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan1", 10, 
+                    function<void(const roboclaw::msg::MotorVelocitySingle &)>(
+                        bind(&RoboclawCore::velocity_single_callback, this, r, 1, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_velocity_2, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_single_cmd/chan2";
+                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+                    "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan2", 10, 
+                    function<void(const roboclaw::msg::MotorVelocitySingle &)>(
+                        bind(&RoboclawCore::velocity_single_callback, this, r, 2, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_posn_both, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_cmd";
+                mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPosition>(
+                    "~/claw" + to_string(r) + "/motor_pos_cmd", 10, 
+                    function<void(const roboclaw::msg::MotorPosition &)>(
+                        bind<void>(&RoboclawCore::position_callback, this, r, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_posn_1, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_single_cmd/chan1";
+                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+                    "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan1", 10,  
+                    function<void(const roboclaw::msg::MotorPositionSingle &)>(
+                        bind<void>(&RoboclawCore::position_single_callback, this, r, 1, std::placeholders::_1)), 
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_posn_2, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_single_cmd/chan2";
+                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+                    "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan2", 10,  
+                    function<void(const roboclaw::msg::MotorPositionSingle &)>(
+                        bind<void>(&RoboclawCore::position_single_callback, this, r, 2, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_duty_1, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_duty_single_cmd/chan1";
+                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
+                    "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan1", 10, 
+                    function<void(const roboclaw::msg::MotorDutySingle &)>(
+                        bind<void>(&RoboclawCore::duty_single_callback, this, r, 1, std::placeholders::_1)),
+                    options
+                ));
+            }
+
+            this->get_parameter(enable_duty_2, sub);
+            if (sub)
+            {
+                options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_duty_single_cmd/chan2";
+                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
+                    "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan2", 10, 
+                    function<void(const roboclaw::msg::MotorDutySingle &)>(
+                        bind<void>(&RoboclawCore::duty_single_callback, this, r, 2, std::placeholders::_1)),
+                    options
+                ));
+            }
+        }
+    }
+
+    void RoboclawCore::create_timers()
+    {
         // create periodic callback to trigger data fetching
         float hz;
         this->get_parameter("posn_hz", hz);
@@ -211,20 +344,8 @@ namespace roboclaw
         this->get_parameter("volt_amp_hz", hz);
         if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
             (1000ms/hz), bind(&RoboclawCore::timer_volt_amp_cb, this)); }
-
-        // Create worker thread to access serial port
-        mRunEnable = true;
-        mPubWorkerThread = unique_ptr<thread>(new thread(&RoboclawCore::pub_worker, this));
     }
 
-    RoboclawCore::~RoboclawCore() {
-        for (int r = 0; r < mClawCnt; r++)
-        {
-            mRoboclaw->set_duty(driver::BASE_ADDRESS + r, std::pair<int, int>(0, 0));
-        }
-        mRunEnable = false;
-        mPubWorkerThread->join();
-    }
 
     bool RoboclawCore::bad_inputs(uint8_t idx, uint8_t chan)
     {

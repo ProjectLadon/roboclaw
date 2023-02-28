@@ -111,6 +111,15 @@ namespace roboclaw {
         rclcpp::TimerBase::SharedPtr mStatusTimer;
         rclcpp::TimerBase::SharedPtr mVoltAmpTimer;
 
+        // setup functions
+        void declare_core_params();
+        void fetch_core_params();
+        void fetch_position_limits();
+        void create_services();
+        void create_publishers();
+        void create_subscribers();
+        void create_timers();
+
         // subscriber callbacks
         void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
         void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg);

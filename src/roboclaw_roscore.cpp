@@ -56,6 +56,23 @@ namespace roboclaw
                             string enable_duty_1 = enable_param_base + "duty.chan1";\
                             string enable_duty_2 = enable_param_base + "duty.chan2";
 
+    #define PID_PARAM_NAMES(i, j)   string pid_enable_param_base = "pid.node" + to_string(i) + ".chan" + to_string(j);\
+                                    string pid_enable_position_base = pid_enable_param_base + ".pos";\
+                                    string pid_enable_velocity_base = pid_enable_param_base + ".vel";\
+                                    string pid_position_enable = pid_enable_position_base + ".enable";\
+                                    string pid_velocity_enable = pid_enable_velocity_base + ".enable";\
+                                    string pid_pos_p = pid_enable_position_base + ".p";\
+                                    string pid_pos_i = pid_enable_position_base + ".i";\
+                                    string pid_pos_d = pid_enable_position_base + ".d";\
+                                    string pid_pos_max_i = pid_enable_position_base + ".max_i";\
+                                    string pid_pos_deadzone = pid_enable_position_base + ".deadzone";\
+                                    string pid_pos_max = pid_enable_position_base + ".max";\
+                                    string pid_pos_min = pid_enable_position_base + ".min";\
+                                    string pid_vel_p = pid_enable_velocity_base + ".p";\
+                                    string pid_vel_i = pid_enable_velocity_base + ".i";\
+                                    string pid_vel_d = pid_enable_velocity_base + ".d";\
+                                    string pid_vel_qpps = pid_enable_velocity_base + ".qpps";
+
     RoboclawCore::RoboclawCore(string name) : Node(name)
     {
         declare_core_params();
@@ -65,6 +82,7 @@ namespace roboclaw
         create_publishers();
         create_subscribers();
         create_timers();
+        create_pid_params();
 
         // Create worker thread to access serial port
         mRunEnable = true;
@@ -115,6 +133,8 @@ namespace roboclaw
             this->declare_parameter<uint8_t>(throttle_param_1, 0);
             this->declare_parameter<uint8_t>(throttle_param_2, 0);
         }
+
+        mParamSub = std::make_shared<rclcpp::ParameterEventHandler>(this);
     }
 
     void RoboclawCore::fetch_core_params()
@@ -346,6 +366,128 @@ namespace roboclaw
             (1000ms/hz), bind(&RoboclawCore::timer_volt_amp_cb, this)); }
     }
 
+    void RoboclawCore::create_pid_params()
+    {
+        for (int i = 0; i < mClawCnt; i++)  
+        {
+            for (int j = 1; j < 3; j++)
+            {
+                PID_PARAM_NAMES(i, j);
+                this->declare_parameter<bool>(pid_position_enable, false);
+                this->declare_parameter<bool>(pid_velocity_enable, false);
+                bool pos_enb, vel_enb;
+                this->get_parameter(pid_position_enable, pos_enb);
+                this->get_parameter(pid_velocity_enable, vel_enb);
+                if (pos_enb)
+                {
+                    this->declare_parameter<float>(pid_pos_p, 0.0);
+                    this->declare_parameter<float>(pid_pos_i, 0.0);
+                    this->declare_parameter<float>(pid_pos_d, 0.0);
+                    this->declare_parameter<float>(pid_pos_max_i, 0.0);
+                    this->declare_parameter<int32_t>(pid_pos_deadzone, 0);
+                    this->declare_parameter<int32_t>(pid_pos_max, numeric_limits<int32_t>::max());
+                    this->declare_parameter<int32_t>(pid_pos_min, numeric_limits<int32_t>::min());
+                    set_pos_pid_from_params(i, j);
+                    create_pos_pid_callbacks(i, j);
+                }
+                if (vel_enb)
+                {
+                    this->declare_parameter<float>(pid_vel_p, 0.0);
+                    this->declare_parameter<float>(pid_vel_i, 0.0);
+                    this->declare_parameter<float>(pid_vel_d, 0.0);
+                    this->declare_parameter<int32_t>(pid_vel_qpps, 0);
+                    set_vel_pid_from_params(i, j);
+                    create_vel_pid_callbacks(i, j);
+                }
+            }
+        }
+    }
+
+    void RoboclawCore::create_pos_pid_callbacks(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_p, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_i, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_d, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_max_i, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_deadzone, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_max, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_pos_min, bind(&RoboclawCore::position_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+    }
+
+    void RoboclawCore::create_vel_pid_callbacks(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_vel_p, bind(&RoboclawCore::velocity_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_vel_i, bind(&RoboclawCore::velocity_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_vel_d, bind(&RoboclawCore::velocity_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            pid_vel_qpps, bind(&RoboclawCore::velocity_pid_cb, 
+                this, node, channel, std::placeholders::_1)));
+    }
+        
+    void RoboclawCore::set_pos_pid_from_params(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        position_pid_t k;
+        this->get_parameter(pid_pos_p, k.p);
+        this->get_parameter(pid_pos_i, k.i);
+        this->get_parameter(pid_pos_d, k.d);
+        this->get_parameter(pid_pos_max_i, k.max_i);
+        this->get_parameter(pid_pos_deadzone, k.deadzone);
+        this->get_parameter(pid_pos_max, k.max_pos);
+        this->get_parameter(pid_pos_min, k.min_pos);
+        mRoboclaw->set_position_pid(driver::BASE_ADDRESS + node, channel, k);
+    }
+        
+    void RoboclawCore::set_vel_pid_from_params(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        velocity_pid_t k;
+        this->get_parameter(pid_vel_p, k.p);
+        this->get_parameter(pid_vel_i, k.i);
+        this->get_parameter(pid_vel_d, k.d);
+        this->get_parameter(pid_vel_qpps, k.qpps);
+        mRoboclaw->set_velocity_pid(driver::BASE_ADDRESS + node, channel, k);
+    }
+        
+    void RoboclawCore::velocity_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p)
+    {
+        RCLCPP_INFO(
+            this->get_logger(), 
+            "Updating node %d channel %d velocity pid from parameter %s",
+            node, channel, p.get_name().c_str());
+        set_vel_pid_from_params(node, channel);
+    }
+        
+    void RoboclawCore::position_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p)
+    {
+        RCLCPP_INFO(
+            this->get_logger(), 
+            "Updating node %d channel %d position pid from parameter %s",
+            node, channel, p.get_name().c_str());
+        set_pos_pid_from_params(node, channel);
+    }    
 
     bool RoboclawCore::bad_inputs(uint8_t idx, uint8_t chan)
     {

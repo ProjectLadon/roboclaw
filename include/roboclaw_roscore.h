@@ -119,6 +119,11 @@ namespace roboclaw {
         void create_publishers();
         void create_subscribers();
         void create_timers();
+        void create_pid_params();
+        void create_pos_pid_callbacks(uint8_t node, uint8_t channel);
+        void create_vel_pid_callbacks(uint8_t node, uint8_t channel);
+        void set_pos_pid_from_params(uint8_t node, uint8_t channel);
+        void set_vel_pid_from_params(uint8_t node, uint8_t channel);
 
         // subscriber callbacks
         void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
@@ -126,6 +131,14 @@ namespace roboclaw {
         void velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingle &msg);
         void position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg);
         void position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingle &msg);
+
+        // parameter change handlers
+        void velocity_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);
+        void position_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);
+        std::shared_ptr<rclcpp::ParameterEventHandler> 
+                mParamSub;
+        std::vector<std::shared_ptr<rclcpp::ParameterCallbackHandle>>
+                mParamCBHandle;
         
         // service callbacks
         void get_posn_pid_cb(

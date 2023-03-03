@@ -641,7 +641,7 @@ namespace roboclaw {
     void driver::exec_set_position_pid(uint8_t address, uint8_t channel, position_pid_t pid)
     {
         uint8_t rx_buffer[1];
-        uint8_t tx_buffer[16];
+        uint8_t tx_buffer[28];
         RCLCPP_INFO(log_node->get_logger(), "Executing set_position_pid on address %d channel %d with values deadzone %u, max_pos %d, min_pos %d, p %6.4f, i %6.4f, d %6.4f, max_i %6.4f", 
                     address, channel, pid.deadzone, pid.max_pos, pid.min_pos, pid.p, pid.i, pid.d, pid.max_i);
     
@@ -651,7 +651,7 @@ namespace roboclaw {
         encode_int32((int32_t)(pid.p * driver::PID_CONST_MULT), &tx_buffer[4]);
         encode_int32((int32_t)(pid.i * driver::PID_CONST_MULT), &tx_buffer[8]);
         encode_int32((int32_t)(pid.max_i * driver::PID_CONST_MULT), &tx_buffer[12]);
-        encode_int32(pid.deadzone, &tx_buffer[16]);
+        encode_int32((int32_t)pid.deadzone, &tx_buffer[16]);
         encode_int32(pid.max_pos, &tx_buffer[20]);
         encode_int32(pid.min_pos, &tx_buffer[24]);
 

@@ -221,15 +221,15 @@ namespace roboclaw
         {
             RCLCPP_INFO(this->get_logger(),  "Creating publishers for node %d", r);
             // create publishers and subscribers
-            mEncodersPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderSteps>(
+            mEncodersPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderStepsStamped>(
                 "~/claw" + to_string(r) + "/posn_out", 10));
-            mErrorsPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderSteps>(
+            mErrorsPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderStepsStamped>(
                 "~/claw" + to_string(r) + "/posn_err", 10));
-            mVoltsAmpsPub.emplace_back(this->create_publisher<roboclaw::msg::MotorVoltsAmps>(
+            mVoltsAmpsPub.emplace_back(this->create_publisher<roboclaw::msg::MotorVoltsAmpsStamped>(
                 "~/claw" + to_string(r) + "/volts_amps_out", 10));
-            mVelocityPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderVelocity>(
+            mVelocityPub.emplace_back(this->create_publisher<roboclaw::msg::EncoderVelocityStamped>(
                 "~/claw" + to_string(r) + "/velocity_out", 10));
-            mStatusPub.emplace_back(this->create_publisher<roboclaw::msg::Status>(
+            mStatusPub.emplace_back(this->create_publisher<roboclaw::msg::StatusStamped>(
                 "~/claw" + to_string(r) + "/status", 10));
         }
     }
@@ -251,9 +251,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_cmd";
-                mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocity>(
+                mVelCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocityStamped>(
                     "~/claw" + to_string(r) + "/motor_vel_cmd", 10, 
-                    function<void(const roboclaw::msg::MotorVelocity &)>(
+                    function<void(const roboclaw::msg::MotorVelocityStamped &)>(
                         bind(&RoboclawCore::velocity_callback, this, r, std::placeholders::_1)),
                     options
                 ));
@@ -263,9 +263,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_single_cmd/chan1";
-                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingleStamped>(
                     "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan1", 10, 
-                    function<void(const roboclaw::msg::MotorVelocitySingle &)>(
+                    function<void(const roboclaw::msg::MotorVelocitySingleStamped &)>(
                         bind(&RoboclawCore::velocity_single_callback, this, r, 1, std::placeholders::_1)),
                     options
                 ));
@@ -275,9 +275,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_vel_single_cmd/chan2";
-                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingle>(
+                mVelCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorVelocitySingleStamped>(
                     "~/claw" + to_string(r) + "/motor_vel_single_cmd/chan2", 10, 
-                    function<void(const roboclaw::msg::MotorVelocitySingle &)>(
+                    function<void(const roboclaw::msg::MotorVelocitySingleStamped &)>(
                         bind(&RoboclawCore::velocity_single_callback, this, r, 2, std::placeholders::_1)),
                     options
                 ));
@@ -287,9 +287,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_cmd";
-                mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPosition>(
+                mPosCmdSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionStamped>(
                     "~/claw" + to_string(r) + "/motor_pos_cmd", 10, 
-                    function<void(const roboclaw::msg::MotorPosition &)>(
+                    function<void(const roboclaw::msg::MotorPositionStamped &)>(
                         bind<void>(&RoboclawCore::position_callback, this, r, std::placeholders::_1)),
                     options
                 ));
@@ -299,9 +299,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_single_cmd/chan1";
-                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingleStamped>(
                     "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan1", 10,  
-                    function<void(const roboclaw::msg::MotorPositionSingle &)>(
+                    function<void(const roboclaw::msg::MotorPositionSingleStamped &)>(
                         bind<void>(&RoboclawCore::position_single_callback, this, r, 1, std::placeholders::_1)), 
                     options
                 ));
@@ -311,9 +311,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_pos_single_cmd/chan2";
-                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingle>(
+                mPosCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorPositionSingleStamped>(
                     "~/claw" + to_string(r) + "/motor_pos_single_cmd/chan2", 10,  
-                    function<void(const roboclaw::msg::MotorPositionSingle &)>(
+                    function<void(const roboclaw::msg::MotorPositionSingleStamped &)>(
                         bind<void>(&RoboclawCore::position_single_callback, this, r, 2, std::placeholders::_1)),
                     options
                 ));
@@ -323,9 +323,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_duty_single_cmd/chan1";
-                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
+                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingleStamped>(
                     "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan1", 10, 
-                    function<void(const roboclaw::msg::MotorDutySingle &)>(
+                    function<void(const roboclaw::msg::MotorDutySingleStamped &)>(
                         bind<void>(&RoboclawCore::duty_single_callback, this, r, 1, std::placeholders::_1)),
                     options
                 ));
@@ -335,9 +335,9 @@ namespace roboclaw
             if (sub)
             {
                 options.topic_stats_options.publish_topic = "~/claw" + to_string(r) + "/statistics/motor_duty_single_cmd/chan2";
-                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingle>(
+                mDutyCmdSingleSub.emplace_back(this->create_subscription<roboclaw::msg::MotorDutySingleStamped>(
                     "~/claw" + to_string(r) + "/motor_duty_single_cmd/chan2", 10, 
-                    function<void(const roboclaw::msg::MotorDutySingle &)>(
+                    function<void(const roboclaw::msg::MotorDutySingleStamped &)>(
                         bind<void>(&RoboclawCore::duty_single_callback, this, r, 2, std::placeholders::_1)),
                     options
                 ));
@@ -504,9 +504,9 @@ namespace roboclaw
         return false;
     }
 
-    void RoboclawCore::duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg) 
+    void RoboclawCore::duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingleStamped &msg) 
     {
-        // RCLCPP_INFO(this->get_logger(), "Received a single motor duty coImmand");
+        // RCLCPP_INFO(this->get_logger(), "Received a single motor duty command");
         if (bad_inputs(idx, chan)) return;
         if (!is_throttle_clear(idx, chan)) return;
         if (mRoboclaw->is_queue_flooded())
@@ -518,7 +518,7 @@ namespace roboclaw
         mRoboclaw->set_duty_single(driver::BASE_ADDRESS + idx, chan, msg.mot_duty);
     }
 
-    void RoboclawCore::velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg) 
+    void RoboclawCore::velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocityStamped &msg) 
     {
         if(bad_inputs(idx, 1)) return;
         if ((!is_throttle_clear(idx, 1)) or (!is_throttle_clear(idx, 2))) return;
@@ -530,7 +530,7 @@ namespace roboclaw
         mRoboclaw->set_velocity(driver::BASE_ADDRESS + idx, std::pair<int, int>(msg.mot1_vel_sps, msg.mot2_vel_sps));
     }
 
-    void RoboclawCore::velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingle &msg) 
+    void RoboclawCore::velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingleStamped &msg) 
     {
         if(bad_inputs(idx, chan)) return;
         if (!is_throttle_clear(idx, chan)) return;
@@ -542,7 +542,7 @@ namespace roboclaw
         mRoboclaw->set_velocity_single(driver::BASE_ADDRESS + idx, msg.channel, msg.mot_vel_sps);
     }
 
-    void RoboclawCore::position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg) 
+    void RoboclawCore::position_callback(uint8_t idx, const roboclaw::msg::MotorPositionStamped &msg) 
     {
         if(bad_inputs(idx, 1)) return;
         if ((!is_throttle_clear(idx, 1)) or (!is_throttle_clear(idx, 2))) return;
@@ -556,7 +556,7 @@ namespace roboclaw
             bound_input(msg.mot2_pos_steps, get_max_posn(get<1>(mPosnLimits[idx])), get_min_posn(get<1>(mPosnLimits[idx])))));
     }
 
-    void RoboclawCore::position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingle &msg) 
+    void RoboclawCore::position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingleStamped &msg) 
     {
         if(bad_inputs(idx, chan)) return;
         if (!is_throttle_clear(idx, chan)) return;
@@ -857,8 +857,9 @@ namespace roboclaw
                 uint32_t status;
                 if (mRoboclaw->get_encoders((driver::BASE_ADDRESS + r), encoders))
                 {
-                    auto msg_encs = roboclaw::msg::EncoderSteps();
+                    auto msg_encs = roboclaw::msg::EncoderStepsStamped();
                     mRoboclaw->clear_encoders_ready(driver::BASE_ADDRESS + r);
+                    msg_encs.header.stamp = this->get_clock()->now();
                     msg_encs.index = r;
                     msg_encs.mot1_enc_steps = encoders.first;
                     msg_encs.mot2_enc_steps = encoders.second;
@@ -866,26 +867,29 @@ namespace roboclaw
                 }
                 if (mRoboclaw->get_velocity((driver::BASE_ADDRESS + r), velocity))
                 {
-                    auto msg_vel = roboclaw::msg::EncoderVelocity();
+                    auto msg_vel = roboclaw::msg::EncoderVelocityStamped();
                     mRoboclaw->clear_velocities_ready(driver::BASE_ADDRESS + r);
                     msg_vel.index = r;
+                    msg_vel.header.stamp = this->get_clock()->now();
                     msg_vel.mot1_enc_vel = velocity.first;
                     msg_vel.mot2_enc_vel = velocity.second;
                     mVelocityPub[r]->publish(msg_vel);
                 }
                 if (mRoboclaw->get_position_errors((driver::BASE_ADDRESS + r), errors))
                 {
-                    auto msg_errs = roboclaw::msg::EncoderSteps();
+                    auto msg_errs = roboclaw::msg::EncoderStepsStamped();
                     mRoboclaw->clear_position_errors_ready(driver::BASE_ADDRESS + r);
                     msg_errs.index = r;
+                    msg_errs.header.stamp = this->get_clock()->now();
                     msg_errs.mot1_enc_steps = errors.first;
                     msg_errs.mot2_enc_steps = errors.second;
                     mErrorsPub[r]->publish(msg_errs);
                 }
                 if (mRoboclaw->get_status((driver::BASE_ADDRESS + r), status))
                 {
-                    auto msg_stat = roboclaw::msg::Status();
+                    auto msg_stat = roboclaw::msg::StatusStamped();
                     mRoboclaw->clear_status_ready(driver::BASE_ADDRESS + r);
+                    msg_stat.header.stamp               = this->get_clock()->now();
                     msg_stat.index                      = r;
                     msg_stat.status                     = status;
                     msg_stat.normal                     = (status == 0);
@@ -922,8 +926,9 @@ namespace roboclaw
                     mRoboclaw->clear_logic_volt_ready(driver::BASE_ADDRESS + r);
                     mRoboclaw->clear_motor_volt_ready(driver::BASE_ADDRESS + r);
                     mRoboclaw->clear_motor_amps_ready(driver::BASE_ADDRESS + r);
-                    auto msg_amps = roboclaw::msg::MotorVoltsAmps();
+                    auto msg_amps = roboclaw::msg::MotorVoltsAmpsStamped();
 
+                    msg_amps.header.stamp = this->get_clock()->now();
                     msg_amps.index = r;
                     msg_amps.motor_volts = motorV;
                     msg_amps.logic_volts = logicV;

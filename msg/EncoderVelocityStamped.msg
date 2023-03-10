@@ -1,0 +1,5 @@
+std_msgs/Header header
+
+uint8 index
+int32 mot1_enc_vel
+int32 mot2_enc_vel

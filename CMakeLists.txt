@@ -40,6 +40,16 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/MotorVoltsAmps.msg"
         "msg/EncoderVelocity.msg"
         "msg/Status.msg"
+        "msg/MotorVelocityStamped.msg"
+        "msg/MotorVelocitySingleStamped.msg"
+        "msg/MotorDutySingleStamped.msg"
+        "msg/EncoderStepsStamped.msg"
+        "msg/MotorPositionStamped.msg"
+        "msg/MotorPositionSingleStamped.msg"
+        "msg/MotorVoltsAmpsStamped.msg"
+        "msg/EncoderVelocityStamped.msg"
+        "msg/StatusStamped.msg"
+        "msg/MotorPwmStamped.msg"
         "srv/GetVelocityPid.srv"
         "srv/SetVelocityPid.srv"
         "srv/GetPositionPid.srv"
@@ -48,6 +58,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/ResetMotor.srv"
         "srv/WriteEeprom.srv"
         "srv/ReadEeprom.srv"
+        DEPENDENCIES builtin_interfaces std_msgs
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")

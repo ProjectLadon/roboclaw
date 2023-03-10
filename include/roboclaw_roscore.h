@@ -36,15 +36,15 @@
 
 #include "roboclaw_driver.h"
 
-#include "roboclaw/msg/encoder_steps.hpp"
-#include "roboclaw/msg/motor_duty_single.hpp"
-#include "roboclaw/msg/motor_velocity.hpp"
-#include "roboclaw/msg/motor_velocity_single.hpp"
-#include "roboclaw/msg/motor_position.hpp"
-#include "roboclaw/msg/motor_position_single.hpp"
-#include "roboclaw/msg/motor_volts_amps.hpp"
-#include "roboclaw/msg/encoder_velocity.hpp"
-#include "roboclaw/msg/status.hpp"
+#include "roboclaw/msg/encoder_steps_stamped.hpp"
+#include "roboclaw/msg/motor_duty_single_stamped.hpp"
+#include "roboclaw/msg/motor_velocity_stamped.hpp"
+#include "roboclaw/msg/motor_velocity_single_stamped.hpp"
+#include "roboclaw/msg/motor_position_stamped.hpp"
+#include "roboclaw/msg/motor_position_single_stamped.hpp"
+#include "roboclaw/msg/motor_volts_amps_stamped.hpp"
+#include "roboclaw/msg/encoder_velocity_stamped.hpp"
+#include "roboclaw/msg/status_stamped.hpp"
 #include "roboclaw/srv/get_position_pid.hpp"
 #include "roboclaw/srv/set_position_pid.hpp"
 #include "roboclaw/srv/get_velocity_pid.hpp"
@@ -82,18 +82,18 @@ namespace roboclaw {
         uint32_t mTimeoutMs;
 
         // publishers
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr>       mEncodersPub;
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderSteps>::SharedPtr>       mErrorsPub;
-        vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocity>::SharedPtr>    mVelocityPub;
-        vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmps>::SharedPtr>     mVoltsAmpsPub;
-        vector<rclcpp::Publisher<roboclaw::msg::Status>::SharedPtr>             mStatusPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderStepsStamped>::SharedPtr>    mEncodersPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderStepsStamped>::SharedPtr>    mErrorsPub;
+        vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocityStamped>::SharedPtr> mVelocityPub;
+        vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmpsStamped>::SharedPtr>  mVoltsAmpsPub;
+        vector<rclcpp::Publisher<roboclaw::msg::StatusStamped>::SharedPtr>          mStatusPub;
 
         // subscribers
-        vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingle>::SharedPtr>         mDutyCmdSingleSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocity>::SharedPtr>           mVelCmdSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingle>::SharedPtr>     mVelCmdSingleSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorPosition>::SharedPtr>           mPosCmdSub;
-        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingle>::SharedPtr>     mPosCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingleStamped>::SharedPtr>      mDutyCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocityStamped>::SharedPtr>        mVelCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorVelocitySingleStamped>::SharedPtr>  mVelCmdSingleSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionStamped>::SharedPtr>        mPosCmdSub;
+        vector<rclcpp::Subscription<roboclaw::msg::MotorPositionSingleStamped>::SharedPtr>  mPosCmdSingleSub;
 
         // services
         rclcpp::Service<roboclaw::srv::GetPositionPid>::SharedPtr   mGetPosPIDSrv;
@@ -126,11 +126,11 @@ namespace roboclaw {
         void set_vel_pid_from_params(uint8_t node, uint8_t channel);
 
         // subscriber callbacks
-        void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingle &msg);
-        void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocity &msg);
-        void velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingle &msg);
-        void position_callback(uint8_t idx, const roboclaw::msg::MotorPosition &msg);
-        void position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingle &msg);
+        void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingleStamped &msg);
+        void velocity_callback(uint8_t idx, const roboclaw::msg::MotorVelocityStamped &msg);
+        void velocity_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorVelocitySingleStamped &msg);
+        void position_callback(uint8_t idx, const roboclaw::msg::MotorPositionStamped &msg);
+        void position_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorPositionSingleStamped &msg);
 
         // parameter change handlers
         void velocity_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);

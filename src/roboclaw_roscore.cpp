@@ -109,6 +109,7 @@ namespace roboclaw
         this->declare_parameter<float>("velocity_hz", -1.0);    // frequency of velocity fetching
         this->declare_parameter<float>("status_hz", -1.0);    // frequency of status fetching
         this->declare_parameter<float>("volt_amp_hz", -1.0);    // frequency of volt/amp fetching
+        this->declare_parameter<float>("pwm_hz", -1.0);    // frequency of motor PWM fetching
         this->declare_parameter<bool>("statistics_enable", false);   // enable/disable statistics
 
         this->get_parameter("num_claws", mClawCnt);
@@ -231,6 +232,8 @@ namespace roboclaw
                 "~/claw" + to_string(r) + "/velocity_out", 10));
             mStatusPub.emplace_back(this->create_publisher<roboclaw::msg::StatusStamped>(
                 "~/claw" + to_string(r) + "/status", 10));
+            mPwmPub.emplace_back(this->create_publisher<roboclaw::msg::MotorPwmStamped>(
+                "~/claw" + to_string(r) + "/pwm_out", 10));
         }
     }
 
@@ -364,6 +367,9 @@ namespace roboclaw
         this->get_parameter("volt_amp_hz", hz);
         if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
             (1000ms/hz), bind(&RoboclawCore::timer_volt_amp_cb, this)); }
+        this->get_parameter("pwm_hz", hz);
+        if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
+            (1000ms/hz), bind(&RoboclawCore::timer_pwm_cb, this)); }
     }
 
     void RoboclawCore::create_pid_params()
@@ -753,7 +759,7 @@ namespace roboclaw
         // Request data
         if (mRoboclaw->is_queue_flooded())
         {
-            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping position feedback");
             return;
         }
         for (int r = 0; r < mClawCnt; r++) 
@@ -768,7 +774,7 @@ namespace roboclaw
         // Request data
         if (mRoboclaw->is_queue_flooded())
         {
-            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping velocity feedback");
             return;
         }
         for (int r = 0; r < mClawCnt; r++) 
@@ -783,7 +789,7 @@ namespace roboclaw
         // Request data
         if (mRoboclaw->is_queue_flooded())
         {
-            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping position error feedback");
             return;
         }
         for (int r = 0; r < mClawCnt; r++) 
@@ -798,7 +804,7 @@ namespace roboclaw
         // Request data
         if (mRoboclaw->is_queue_flooded())
         {
-            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping status feedback");
             return;
         }
         for (int r = 0; r < mClawCnt; r++) 
@@ -812,12 +818,26 @@ namespace roboclaw
         // Request data
         if (mRoboclaw->is_queue_flooded())
         {
-            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping feedback");
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping current feedback");
             return;
         }
         for (int r = 0; r < mClawCnt; r++) 
         {
             mRoboclaw->read_volt_current(driver::BASE_ADDRESS + r);
+        }
+    }
+
+    void RoboclawCore::timer_pwm_cb() 
+    {
+        // Request data
+        if (mRoboclaw->is_queue_flooded())
+        {
+            RCLCPP_INFO(this->get_logger(), "Command queue flooded; skipping PWM feedback");
+            return;
+        }
+        for (int r = 0; r < mClawCnt; r++) 
+        {
+            mRoboclaw->read_motor_pwm(driver::BASE_ADDRESS + r);
         }
     }
 
@@ -854,6 +874,7 @@ namespace roboclaw
                 float logicV, motorV;
                 pair<float, float> currents;
                 pair<int, int> encoders, velocity, errors;
+                pair<int16_t, int16_t> pwm;
                 uint32_t status;
                 if (mRoboclaw->get_encoders((driver::BASE_ADDRESS + r), encoders))
                 {
@@ -935,6 +956,15 @@ namespace roboclaw
                     msg_amps.mot1_amps = currents.first;
                     msg_amps.mot2_amps = currents.second;
                     mVoltsAmpsPub[r]->publish(msg_amps);
+                }
+                if (mRoboclaw->get_motor_pwm((driver::BASE_ADDRESS + r), pwm))
+                {
+                    auto msg_pwm = roboclaw::msg::MotorPwmStamped();
+                    msg_pwm.header.stamp = this->get_clock()->now();
+                    msg_pwm.index = r;
+                    msg_pwm.mot1_pwm = pwm.first;
+                    msg_pwm.mot2_pwm = pwm.second;
+                    mPwmPub[r]->publish(msg_pwm);
                 }
             }
         }

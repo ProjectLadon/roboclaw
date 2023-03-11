@@ -299,6 +299,29 @@ namespace roboclaw {
         status_ready[address] = true;
     }
 
+    void driver::read_motor_pwm(uint8_t address)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        motor_pwm_ready[address] = false;
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_motor_pwm, this, address)));
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_motor_pwm");
+    }
+    void driver::exec_read_motor_pwm(uint8_t address)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        uint8_t rx_buffer[4];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_motor_pwm");
+
+        txrx(address, (uint8_t)StatusCmds::ReadMotorPWMs, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+
+        int16_t e1 = decode_int16(&rx_buffer[0]);
+        int16_t e2 = decode_int16(&rx_buffer[2]);
+
+        motor_pwm[address] = std::pair<int16_t, int16_t>(e1, e2);
+        motor_pwm_ready[address] = true;
+    }
+
     void driver::read_encoders(uint8_t address)
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
@@ -711,6 +734,17 @@ namespace roboclaw {
             return true;
         }
         return false;
+    }
+    bool driver::get_motor_pwm(uint8_t address, std::pair<int16_t, int16_t> &result)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        if ((motor_pwm.find(address) != motor_pwm.end()) and (motor_pwm_ready[address]))
+        {
+            result = motor_pwm[address];
+            return true;
+        }
+        return false;
+
     }
     bool driver::get_velocity(uint8_t address, std::pair<int, int> &result)
     {

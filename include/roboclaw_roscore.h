@@ -44,6 +44,7 @@
 #include "roboclaw/msg/motor_position_single_stamped.hpp"
 #include "roboclaw/msg/motor_volts_amps_stamped.hpp"
 #include "roboclaw/msg/encoder_velocity_stamped.hpp"
+#include "roboclaw/msg/motor_pwm_stamped.hpp"
 #include "roboclaw/msg/status_stamped.hpp"
 #include "roboclaw/srv/get_position_pid.hpp"
 #include "roboclaw/srv/set_position_pid.hpp"
@@ -87,6 +88,7 @@ namespace roboclaw {
         vector<rclcpp::Publisher<roboclaw::msg::EncoderVelocityStamped>::SharedPtr> mVelocityPub;
         vector<rclcpp::Publisher<roboclaw::msg::MotorVoltsAmpsStamped>::SharedPtr>  mVoltsAmpsPub;
         vector<rclcpp::Publisher<roboclaw::msg::StatusStamped>::SharedPtr>          mStatusPub;
+        vector<rclcpp::Publisher<roboclaw::msg::MotorPwmStamped>::SharedPtr>        mPwmPub;
 
         // subscribers
         vector<rclcpp::Subscription<roboclaw::msg::MotorDutySingleStamped>::SharedPtr>      mDutyCmdSingleSub;
@@ -110,6 +112,7 @@ namespace roboclaw {
         rclcpp::TimerBase::SharedPtr mVelocityTimer;
         rclcpp::TimerBase::SharedPtr mStatusTimer;
         rclcpp::TimerBase::SharedPtr mVoltAmpTimer;
+        rclcpp::TimerBase::SharedPtr mPwmTimer;
 
         // setup functions
         void declare_core_params();
@@ -172,6 +175,7 @@ namespace roboclaw {
         void timer_encoder_err_cb();
         void timer_status_cb();
         void timer_volt_amp_cb();
+        void timer_pwm_cb();
         void pub_worker();
 
         // utility functions

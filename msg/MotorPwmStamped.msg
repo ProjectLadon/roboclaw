@@ -1,5 +1,5 @@
 std_msgs/Header header
 
 uint8 index
-int32 mot1_pwm
-int32 mot2_pwm
+int16 mot1_pwm
+int16 mot2_pwm

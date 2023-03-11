@@ -239,6 +239,7 @@ namespace roboclaw {
         void read_volt_current(uint8_t address);
         void read_position_errors(uint8_t address);
         void read_status(uint8_t address);
+        void read_motor_pwm(uint8_t address);
         void read_velocity_pid(uint8_t address, uint8_t channel);
         void read_position_pid(uint8_t address, uint8_t channel);
 
@@ -250,6 +251,7 @@ namespace roboclaw {
         bool get_velocity(uint8_t address, std::pair<int, int> &result);
         bool get_position_errors(uint8_t address, std::pair<int, int> &result);
         bool get_status(uint8_t address, uint32_t &result);
+        bool get_motor_pwm(uint8_t address, std::pair<int16_t, int16_t> &result);
         bool get_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t &result);
         bool get_position_pid(uint8_t address, uint8_t channel, position_pid_t &result);
 
@@ -261,6 +263,7 @@ namespace roboclaw {
         void clear_position_errors_ready(uint8_t address) { posn_err_ready[address] = false; }
         void clear_version_ready(uint8_t address) { versions_ready[address] = false; }
         void clear_status_ready(uint8_t address) { status_ready[address] = false; }
+        void clear_motor_pwm_read(uint8_t address) { motor_pwm_ready[address] = false; }
 
         bool is_queue_flooded() { return (command_queue.size() > MAX_QUEUE_DEPTH); }
 
@@ -296,6 +299,7 @@ namespace roboclaw {
         std::map<uint8_t, std::pair<int, int>>      posn_errors;
         std::map<uint8_t, std::string>              versions;
         std::map<uint8_t, uint32_t>                 status;
+        std::map<uint8_t, std::pair<int16_t, int16_t>>      motor_pwm;
         std::map<uint8_t, std::pair<velocity_pid_t, velocity_pid_t>>    velocity_pid_data;
         std::map<uint8_t, std::pair<position_pid_t, position_pid_t>>    position_pid_data;
 
@@ -307,6 +311,7 @@ namespace roboclaw {
         std::map<uint8_t, std::atomic_bool>         posn_err_ready;
         std::map<uint8_t, std::atomic_bool>         versions_ready;
         std::map<uint8_t, std::atomic_bool>         status_ready;
+        std::map<uint8_t, std::atomic_bool>         motor_pwm_ready;
         std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  velocity_pid_ready;
         std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  position_pid_ready;
 
@@ -335,6 +340,7 @@ namespace roboclaw {
         void exec_read_volt_current(uint8_t address);
         void exec_read_position_errors(uint8_t address);
         void exec_read_status(uint8_t address);
+        void exec_read_motor_pwm(uint8_t address);
         void exec_read_velocity_pid(uint8_t address, uint8_t channel);
         void exec_read_position_pid(uint8_t address, uint8_t channel);
 

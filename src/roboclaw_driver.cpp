@@ -174,6 +174,28 @@ namespace roboclaw {
             return bytes_received - 2;
     }
 
+    void driver::read_current_limit(uint8_t address, uint8_t channel)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        boost::mutex::scoped_lock dlock(data_mutex);
+        (channel == 1) ? current_limit_ready[address].first = false : current_limit_ready[address].second = false;
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_read_current_limit, this, address, channel)));
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing read_current_limit");
+    }
+    void driver::exec_read_current_limit(uint8_t address, uint8_t channel)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        uint8_t rx_buffer[8];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing read_current_limit on channel %d", channel);
+        uint8_t command = (channel == 1) ? (uint8_t)StatusCmds::ReadMaxCurrM1 : (uint8_t)StatusCmds::ReadMaxCurrM2;
+
+        txrx(address, command, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
+        float output;
+        output = (float)decode_int32(&rx_buffer[0])/driver::AMPS_SCALE;
+        (channel == 1) ? current_limit_ready[address].first = true : current_limit_ready[address].second = true;
+        (channel == 1) ? current_limit[address].first = output : current_limit[address].second = output;
+    }
+
     void driver::read_velocity_pid(uint8_t address, uint8_t channel)
     {
         boost::mutex::scoped_lock qlock(queue_mutex);
@@ -253,7 +275,6 @@ namespace roboclaw {
         uint8_t rx_buffer[4];
         txrx(address, (uint8_t)StatusCmds::WriteSettingsEEPROM, nullptr, 0, rx_buffer, sizeof(rx_buffer), false, true);
     }
-
 
     void driver::read_version(uint8_t address)
     {
@@ -513,6 +534,23 @@ namespace roboclaw {
         uint8_t tx_buffer[4];
         encode_int32(value, tx_buffer);
         
+        txrx(address, command, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
+    }
+
+    void driver::set_current_limit(uint8_t address, uint8_t channel, float limit)
+    {
+        boost::mutex::scoped_lock qlock(queue_mutex);
+        command_queue.push(std::make_pair(address, std::bind<void>(&driver::exec_set_current_limit, this, address, channel, limit)));
+        // RCLCPP_INFO(log_node->get_logger(), "Enqueuing set_current_limit");
+    }
+    void driver::exec_set_current_limit(uint8_t address, uint8_t channel, float limit)
+    {
+        uint8_t rx_buffer[1];
+        uint8_t tx_buffer[8];
+        // RCLCPP_INFO(log_node->get_logger(), "Executing set_current_limit on channel %d", channel);
+        uint8_t command = (channel == 1) ? (uint8_t)StatusCmds::SetMaxCurrM1 : (uint8_t)StatusCmds::SetMaxCurrM2;
+        memset(&tx_buffer[0], 0, sizeof(tx_buffer));
+        encode_int32((int32_t)(limit * driver::AMPS_SCALE), &tx_buffer[0]);
         txrx(address, command, tx_buffer, sizeof(tx_buffer), rx_buffer, sizeof(rx_buffer), true, false);
     }
 
@@ -813,6 +851,26 @@ namespace roboclaw {
             }
         }
         return false;
+    }
+
+    bool driver::get_current_limit(uint8_t address, uint8_t channel, float &result)
+    {
+        boost::mutex::scoped_lock dlock(data_mutex);
+        if (current_limit.find(address) != current_limit.end())
+        {
+            if ((channel == 1) and current_limit_ready[address].first)
+            {
+                result = current_limit[address].first;
+                return true;
+            }
+            else if ((channel == 2) and current_limit_ready[address].second)
+            {
+                result = current_limit[address].second;
+                return true;
+            }
+        }
+        return false;
+
     }
 
     uint32_t driver::decode_uint32(uint8_t *buf)

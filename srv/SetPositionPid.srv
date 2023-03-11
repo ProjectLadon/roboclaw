@@ -1,4 +1,4 @@
-# Fetch the position PID constants for the given node and motor
+# Set the position PID constants for the given node and motor
 
 uint8 node 
 uint8 channel

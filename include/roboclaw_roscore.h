@@ -54,6 +54,8 @@
 #include "roboclaw/srv/reset_motor.hpp"
 #include "roboclaw/srv/read_eeprom.hpp"
 #include "roboclaw/srv/write_eeprom.hpp"
+#include "roboclaw/srv/get_current_limit.hpp"
+#include "roboclaw/srv/set_current_limit.hpp"
 
 using namespace std::chrono_literals;
 using namespace std;
@@ -106,6 +108,8 @@ namespace roboclaw {
         rclcpp::Service<roboclaw::srv::ResetMotor>::SharedPtr       mResetMotorSrv;
         rclcpp::Service<roboclaw::srv::ReadEeprom>::SharedPtr       mReadEEPROMSrv;
         rclcpp::Service<roboclaw::srv::WriteEeprom>::SharedPtr      mWriteEEPROMSrv;
+        rclcpp::Service<roboclaw::srv::GetCurrentLimit>::SharedPtr  mGetCurrentLimitSrv;
+        rclcpp::Service<roboclaw::srv::SetCurrentLimit>::SharedPtr  mSetCurrentLimitSrv;
 
         rclcpp::TimerBase::SharedPtr mEncoderTimer;
         rclcpp::TimerBase::SharedPtr mEncoderErrTimer;
@@ -125,8 +129,10 @@ namespace roboclaw {
         void create_pid_params();
         void create_pos_pid_callbacks(uint8_t node, uint8_t channel);
         void create_vel_pid_callbacks(uint8_t node, uint8_t channel);
+        void create_current_limit_callbacks(uint8_t node, uint8_t channel);
         void set_pos_pid_from_params(uint8_t node, uint8_t channel);
         void set_vel_pid_from_params(uint8_t node, uint8_t channel);
+        void set_current_limit_from_params(uint8_t node, uint8_t channel);
 
         // subscriber callbacks
         void duty_single_callback(uint8_t idx, uint8_t chan, const roboclaw::msg::MotorDutySingleStamped &msg);
@@ -138,6 +144,7 @@ namespace roboclaw {
         // parameter change handlers
         void velocity_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);
         void position_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);
+        void current_limit_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p);
         std::shared_ptr<rclcpp::ParameterEventHandler> 
                 mParamSub;
         std::vector<std::shared_ptr<rclcpp::ParameterCallbackHandle>>
@@ -168,6 +175,12 @@ namespace roboclaw {
         void write_eeprom_cb(
             const shared_ptr<roboclaw::srv::WriteEeprom::Request> request,
             shared_ptr<roboclaw::srv::WriteEeprom::Response> response);
+        void get_current_limit_cb(
+            const shared_ptr<roboclaw::srv::GetCurrentLimit::Request> request,
+            shared_ptr<roboclaw::srv::GetCurrentLimit::Response> response);
+        void set_current_limit_cb(
+            const shared_ptr<roboclaw::srv::SetCurrentLimit::Request> request,
+            shared_ptr<roboclaw::srv::SetCurrentLimit::Response> response);
 
         // timer callback & thread workers
         void timer_encoder_cb();

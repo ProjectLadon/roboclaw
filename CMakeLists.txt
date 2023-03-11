@@ -58,6 +58,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/ResetMotor.srv"
         "srv/WriteEeprom.srv"
         "srv/ReadEeprom.srv"
+        "srv/SetCurrentLimit.srv"
+        "srv/GetCurrentLimit.srv"
         DEPENDENCIES builtin_interfaces std_msgs
 )
 

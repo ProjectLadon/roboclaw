@@ -71,7 +71,9 @@ namespace roboclaw
                                     string pid_vel_p = pid_enable_velocity_base + ".p";\
                                     string pid_vel_i = pid_enable_velocity_base + ".i";\
                                     string pid_vel_d = pid_enable_velocity_base + ".d";\
-                                    string pid_vel_qpps = pid_enable_velocity_base + ".qpps";
+                                    string pid_vel_qpps = pid_enable_velocity_base + ".qpps";\
+                                    string current_limit_enable = "current_limit.node" + to_string(i) + ".chan" + to_string(j) + ".enable";\
+                                    string current_limit_value = "current_limit.node" + to_string(i) + ".chan" + to_string(j) + ".limit"; 
 
     RoboclawCore::RoboclawCore(string name) : Node(name)
     {
@@ -214,6 +216,14 @@ namespace roboclaw
             function<void(const shared_ptr<roboclaw::srv::ReadEeprom::Request>,
             shared_ptr<roboclaw::srv::ReadEeprom::Response>)>(
             bind<void>(&RoboclawCore::read_eeprom_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mGetCurrentLimitSrv = this->create_service<roboclaw::srv::GetCurrentLimit>("~/get_current_limit", 
+            function<void(const shared_ptr<roboclaw::srv::GetCurrentLimit::Request>,
+            shared_ptr<roboclaw::srv::GetCurrentLimit::Response>)>(
+            bind<void>(&RoboclawCore::get_current_limit_cb, this, std::placeholders::_1, std::placeholders::_2)));
+        mSetCurrentLimitSrv = this->create_service<roboclaw::srv::SetCurrentLimit>("~/set_current_limit", 
+            function<void(const shared_ptr<roboclaw::srv::SetCurrentLimit::Request>,
+            shared_ptr<roboclaw::srv::SetCurrentLimit::Response>)>(
+            bind<void>(&RoboclawCore::set_current_limit_cb, this, std::placeholders::_1, std::placeholders::_2)));
     }
 
     void RoboclawCore::create_publishers()
@@ -381,9 +391,11 @@ namespace roboclaw
                 PID_PARAM_NAMES(i, j);
                 this->declare_parameter<bool>(pid_position_enable, false);
                 this->declare_parameter<bool>(pid_velocity_enable, false);
-                bool pos_enb, vel_enb;
+                this->declare_parameter<bool>(current_limit_enable, false);
+                bool pos_enb, vel_enb, curr_enb;
                 this->get_parameter(pid_position_enable, pos_enb);
                 this->get_parameter(pid_velocity_enable, vel_enb);
+                this->get_parameter(current_limit_enable, curr_enb);
                 if (pos_enb)
                 {
                     this->declare_parameter<float>(pid_pos_p, 0.0);
@@ -404,6 +416,12 @@ namespace roboclaw
                     this->declare_parameter<int32_t>(pid_vel_qpps, 0);
                     set_vel_pid_from_params(i, j);
                     create_vel_pid_callbacks(i, j);
+                }
+                if (curr_enb)
+                {
+                    this->declare_parameter<float>(current_limit_value, -1.0);
+                    set_current_limit_from_params(i,j);
+                    create_current_limit_callbacks(i,j);
                 }
             }
         }
@@ -451,6 +469,14 @@ namespace roboclaw
             pid_vel_qpps, bind(&RoboclawCore::velocity_pid_cb, 
                 this, node, channel, std::placeholders::_1)));
     }
+
+    void RoboclawCore::create_current_limit_callbacks(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        mParamCBHandle.emplace_back(mParamSub->add_parameter_callback(
+            current_limit_value, bind(&RoboclawCore::current_limit_cb, 
+                this, node, channel, std::placeholders::_1)));
+    }
         
     void RoboclawCore::set_pos_pid_from_params(uint8_t node, uint8_t channel)
     {
@@ -476,7 +502,15 @@ namespace roboclaw
         this->get_parameter(pid_vel_qpps, k.qpps);
         mRoboclaw->set_velocity_pid(driver::BASE_ADDRESS + node, channel, k);
     }
-        
+    
+    void RoboclawCore::set_current_limit_from_params(uint8_t node, uint8_t channel)
+    {
+        PID_PARAM_NAMES(node, channel);
+        float limit;
+        this->get_parameter(current_limit_value, limit);
+        if (limit > 0.0) { mRoboclaw->set_current_limit(driver::BASE_ADDRESS + node, channel, limit); }
+    }
+    
     void RoboclawCore::velocity_pid_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p)
     {
         RCLCPP_INFO(
@@ -493,6 +527,15 @@ namespace roboclaw
             "Updating node %d channel %d position pid from parameter %s",
             node, channel, p.get_name().c_str());
         set_pos_pid_from_params(node, channel);
+    }    
+
+    void RoboclawCore::current_limit_cb(uint8_t node, uint8_t channel, const rclcpp::Parameter &p)
+    {
+        RCLCPP_INFO(
+            this->get_logger(), 
+            "Updating node %d channel %d current limit from parameter %s",
+            node, channel, p.get_name().c_str());
+        set_current_limit_from_params(node, channel);
     }    
 
     bool RoboclawCore::bad_inputs(uint8_t idx, uint8_t chan)
@@ -746,11 +789,49 @@ namespace roboclaw
             response->success = false;
             return;
         }
-        mRoboclaw->read_eeprom(driver::BASE_ADDRESS + request->node);
 
-        response->success = true;
         return;
 
+    }
+    
+    void RoboclawCore::get_current_limit_cb(const shared_ptr<roboclaw::srv::GetCurrentLimit::Request> request,
+        shared_ptr<roboclaw::srv::GetCurrentLimit::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->read_current_limit((driver::BASE_ADDRESS + request->node), request->channel);
+        float limit;
+        uint32_t cnt = 0;
+        while ((cnt < mTimeoutMs ) and (!mRoboclaw->get_current_limit((driver::BASE_ADDRESS + request->node), request->channel, limit)))
+        { 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+            cnt++;
+        }
+        if (cnt >= mTimeoutMs)
+        {
+            response->success = false;
+            response->error = "Request timed out";
+            return;
+        }
+        response->success = true;
+        response->max_current = limit;
+    }
+    
+    void RoboclawCore::set_current_limit_cb(const shared_ptr<roboclaw::srv::SetCurrentLimit::Request> request,
+        shared_ptr<roboclaw::srv::SetCurrentLimit::Response> response)
+    {
+        if(bad_inputs(request->node, request->channel)) 
+        {
+            response->success = false;
+            response->error = "Bad node and/or channel spec";
+            return;
+        }
+        mRoboclaw->set_current_limit((driver::BASE_ADDRESS + request->node), request->channel, request->max_current);
+        response->success = true;
     }
 
     void RoboclawCore::timer_encoder_cb() 

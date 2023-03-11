@@ -226,6 +226,7 @@ namespace roboclaw {
         void reset_encoder(uint8_t address, uint8_t channel, int32_t value);
         void set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t k);
         void set_position_pid(uint8_t address, uint8_t channel, position_pid_t k);
+        void set_current_limit(uint8_t address, uint8_t channel, float limit);
 
         // TODO: change this mess to take some proper callbacks
         void write_eeprom(uint8_t address);
@@ -242,6 +243,7 @@ namespace roboclaw {
         void read_motor_pwm(uint8_t address);
         void read_velocity_pid(uint8_t address, uint8_t channel);
         void read_position_pid(uint8_t address, uint8_t channel);
+        void read_current_limit(uint8_t address, uint8_t channel);
 
         bool get_logic_voltage(uint8_t address, float &result);
         bool get_motor_voltage(uint8_t address, float &result);
@@ -254,6 +256,7 @@ namespace roboclaw {
         bool get_motor_pwm(uint8_t address, std::pair<int16_t, int16_t> &result);
         bool get_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t &result);
         bool get_position_pid(uint8_t address, uint8_t channel, position_pid_t &result);
+        bool get_current_limit(uint8_t address, uint8_t channel, float &result);
 
         void clear_logic_volt_ready(uint8_t address) { logic_voltages_ready[address] = false; }
         void clear_motor_volt_ready(uint8_t address) { motor_voltages_ready[address] = false; }
@@ -299,9 +302,10 @@ namespace roboclaw {
         std::map<uint8_t, std::pair<int, int>>      posn_errors;
         std::map<uint8_t, std::string>              versions;
         std::map<uint8_t, uint32_t>                 status;
-        std::map<uint8_t, std::pair<int16_t, int16_t>>      motor_pwm;
+        std::map<uint8_t, std::pair<int16_t, int16_t>>                  motor_pwm;
         std::map<uint8_t, std::pair<velocity_pid_t, velocity_pid_t>>    velocity_pid_data;
         std::map<uint8_t, std::pair<position_pid_t, position_pid_t>>    position_pid_data;
+        std::map<uint8_t, std::pair<float, float>>                      current_limit;
 
         std::map<uint8_t, std::atomic_bool>         logic_voltages_ready;
         std::map<uint8_t, std::atomic_bool>         motor_voltages_ready;
@@ -312,6 +316,7 @@ namespace roboclaw {
         std::map<uint8_t, std::atomic_bool>         versions_ready;
         std::map<uint8_t, std::atomic_bool>         status_ready;
         std::map<uint8_t, std::atomic_bool>         motor_pwm_ready;
+        std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  current_limit_ready;
         std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  velocity_pid_ready;
         std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  position_pid_ready;
 
@@ -328,6 +333,7 @@ namespace roboclaw {
         void exec_reset_encoder(uint8_t address, uint8_t channel, int32_t value);
         void exec_set_velocity_pid(uint8_t address, uint8_t channel, velocity_pid_t pid);
         void exec_set_position_pid(uint8_t address, uint8_t channel, position_pid_t pid);
+        void exec_set_current_limit(uint8_t address, uint8_t channel, float limit);
 
         void exec_write_eeprom(uint8_t address);
         void exec_read_eeprom(uint8_t address);
@@ -343,6 +349,7 @@ namespace roboclaw {
         void exec_read_motor_pwm(uint8_t address);
         void exec_read_velocity_pid(uint8_t address, uint8_t channel);
         void exec_read_position_pid(uint8_t address, uint8_t channel);
+        void exec_read_current_limit(uint8_t address, uint8_t channel);
 
         uint32_t decode_uint32(uint8_t *buf);
         int32_t decode_int32(uint8_t *buf);

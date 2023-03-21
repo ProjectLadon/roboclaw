@@ -378,7 +378,7 @@ namespace roboclaw
         if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
             (1000ms/hz), bind(&RoboclawCore::timer_volt_amp_cb, this)); }
         this->get_parameter("pwm_hz", hz);
-        if (hz > 0.01) { mVoltAmpTimer = this->create_wall_timer(
+        if (hz > 0.01) { mPwmTimer = this->create_wall_timer(
             (1000ms/hz), bind(&RoboclawCore::timer_pwm_cb, this)); }
     }
 

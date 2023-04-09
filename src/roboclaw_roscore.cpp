@@ -1040,6 +1040,7 @@ namespace roboclaw
                 }
                 if (mRoboclaw->get_motor_pwm((driver::BASE_ADDRESS + r), pwm))
                 {
+                    mRoboclaw->clear_motor_pwm_ready(driver::BASE_ADDRESS + r);
                     auto msg_pwm = roboclaw::msg::MotorPwmStamped();
                     msg_pwm.header.stamp = this->get_clock()->now();
                     msg_pwm.index = r;

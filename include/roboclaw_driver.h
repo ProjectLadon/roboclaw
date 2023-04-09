@@ -266,7 +266,7 @@ namespace roboclaw {
         void clear_position_errors_ready(uint8_t address) { posn_err_ready[address] = false; }
         void clear_version_ready(uint8_t address) { versions_ready[address] = false; }
         void clear_status_ready(uint8_t address) { status_ready[address] = false; }
-        void clear_motor_pwm_read(uint8_t address) { motor_pwm_ready[address] = false; }
+        void clear_motor_pwm_ready(uint8_t address) { motor_pwm_ready[address] = false; }
 
         bool is_queue_flooded() { return (command_queue.size() > MAX_QUEUE_DEPTH); }
 

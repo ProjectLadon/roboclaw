@@ -37,7 +37,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include <boost/thread/mutex.hpp>
-#include "TimeoutSerial.h"
+#include <libserial/SerialPort.h>
+// #include "TimeoutSerial.h"
 
 namespace roboclaw {
 
@@ -213,6 +214,11 @@ namespace roboclaw {
             const uint32_t timeout_ms,
             rclcpp::Node *node
         );
+        driver(
+            const std::string port, 
+            const LibSerial::BaudRate baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Node *node);
         ~driver();
 
         void set_timeout_ms(const uint32_t to);
@@ -272,6 +278,7 @@ namespace roboclaw {
 
         const static uint8_t BASE_ADDRESS;
         const static uint32_t DEFAULT_BAUDRATE;
+        const static LibSerial::BaudRate DEFAULT_BAUD;
         const static float AMPS_SCALE;
         const static float VOLTS_SCALE;
         const static uint32_t DEFAULT_TIMEOUT_MS;
@@ -284,10 +291,12 @@ namespace roboclaw {
 
         // typedef std::tuple<CommandType, uint8_t, int, int> cmd_t;
         std::unique_ptr<std::thread>    worker_thread;
-        std::shared_ptr<TimeoutSerial>  serial;
+        // std::shared_ptr<TimeoutSerial>  serial;
+        LibSerial::SerialPort serial;
         std::queue<cmd_t> command_queue;  
+        uint32_t serial_timeout_ms;
 
-        boost::asio::io_service         io;
+        // boost::asio::io_service         io;
         boost::mutex                    serial_mutex;   // mutex to control access to the serial port
         boost::mutex                    queue_mutex;    // mutex to control access to the command queue
         boost::mutex                    data_mutex;     // mutex to control access to the returned data
@@ -321,6 +330,12 @@ namespace roboclaw {
         std::map<uint8_t, std::pair<std::atomic_bool, std::atomic_bool>>  position_pid_ready;
 
         uint16_t crc;
+
+        void setup(
+            const std::string port, 
+            const LibSerial::BaudRate baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Node *node);
 
         void worker();
         

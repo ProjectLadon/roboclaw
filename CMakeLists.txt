@@ -16,6 +16,8 @@ find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SERIAL libserial)
 # find_package(roboclaw REQUIRED)
 
 ## System dependencies are found with CMake's conventions
@@ -71,33 +73,33 @@ rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_t
 
 add_executable(roboclaw_node
         src/roboclaw_driver.cpp
-        src/TimeoutSerial.cpp
         src/roboclaw_roscore.cpp
         src/roboclaw_node.cpp)
+
+target_include_directories(roboclaw_node PRIVATE ${SERIAL_INCLUDE_DIRS})
+
 ament_target_dependencies(roboclaw_node
         "rclcpp"
         "rclcpp_action"
         "geometry_msgs"
         "std_msgs"
-        "nav_msgs"
-)
+        "nav_msgs")
 
 add_executable(diffdrive_node
         src/roboclaw_driver.cpp
-        src/TimeoutSerial.cpp
         src/diffdrive_roscore.cpp
         src/diffdrive_node.cpp)
+
 ament_target_dependencies(diffdrive_node
         "rclcpp"
         "rclcpp_action"
         "geometry_msgs"
         "std_msgs"
         "nav_msgs"
-        "tf2_ros"
-)
+        "tf2_ros")
 
-target_link_libraries(roboclaw_node "${cpp_typesupport_target}")
-target_link_libraries(diffdrive_node "${cpp_typesupport_target}")
+target_link_libraries(roboclaw_node "${cpp_typesupport_target}" ${SERIAL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(diffdrive_node "${cpp_typesupport_target}" ${SERIAL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 #############
 ## Install ##

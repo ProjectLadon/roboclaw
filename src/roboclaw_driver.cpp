@@ -27,11 +27,14 @@
 #include <boost/bind.hpp>
 #include <boost/array.hpp>
 
+using namespace LibSerial;
+
 namespace roboclaw {
 
     const uint8_t driver::BASE_ADDRESS          = 0x80;
     const uint8_t driver::MAX_QUEUE_DEPTH       = 50;
     const uint32_t driver::DEFAULT_BAUDRATE     = 38400;
+    const BaudRate driver::DEFAULT_BAUD = BaudRate::BAUD_38400;
     const float driver::AMPS_SCALE              = 100.0f;
     const float driver::VOLTS_SCALE             = 10.0f;
     const uint32_t driver::DEFAULT_TIMEOUT_MS   = 200;
@@ -39,12 +42,93 @@ namespace roboclaw {
 
     driver::driver(
             const std::string port, 
+            const BaudRate baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Node *node)
+    {
+        setup(port, baudrate, timeout_ms, node);
+    }
+
+    driver::driver(
+            const std::string port, 
             const uint32_t baudrate, 
             const uint32_t timeout_ms,
             rclcpp::Node *node)
     {
-        serial = std::shared_ptr<TimeoutSerial>(new TimeoutSerial(port, baudrate));
-        serial->setTimeout(boost::posix_time::milliseconds(timeout_ms));
+        switch(baudrate)
+        {
+            case(50):
+                setup(port, BaudRate::BAUD_50, timeout_ms, node);
+                break;
+            case(75):
+                setup(port, BaudRate::BAUD_75, timeout_ms, node);
+                break;
+            case(110):
+                setup(port, BaudRate::BAUD_110, timeout_ms, node);
+                break;
+            case(134):
+                setup(port, BaudRate::BAUD_134, timeout_ms, node);
+                break;
+            case(150):
+                setup(port, BaudRate::BAUD_150, timeout_ms, node);
+                break;
+            case(200):
+                setup(port, BaudRate::BAUD_200, timeout_ms, node);
+                break;
+            case(300):
+                setup(port, BaudRate::BAUD_300, timeout_ms, node);
+                break;
+            case(600):
+                setup(port, BaudRate::BAUD_600, timeout_ms, node);
+                break;
+            case(1200):
+                setup(port, BaudRate::BAUD_1200, timeout_ms, node);
+                break;
+            case(1800):
+                setup(port, BaudRate::BAUD_1800, timeout_ms, node);
+                break;
+            case(2400):
+                setup(port, BaudRate::BAUD_2400, timeout_ms, node);
+                break;
+            case(4800):
+                setup(port, BaudRate::BAUD_4800, timeout_ms, node);
+                break;
+            case(9600):
+                setup(port, BaudRate::BAUD_9600, timeout_ms, node);
+                break;
+            case(19200):
+                setup(port, BaudRate::BAUD_19200, timeout_ms, node);
+                break;
+            case(38400):
+                setup(port, BaudRate::BAUD_38400, timeout_ms, node);
+                break;
+            case(57600):
+                setup(port, BaudRate::BAUD_57600, timeout_ms, node);
+                break;
+            case(115200):
+                setup(port, BaudRate::BAUD_115200, timeout_ms, node);
+                break;
+            case(230400):
+                setup(port, BaudRate::BAUD_230400, timeout_ms, node);
+                break;
+            default:
+                setup(port, driver::DEFAULT_BAUD, timeout_ms, node);
+        }
+    }
+
+    void driver::setup(
+            const std::string port, 
+            const BaudRate baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Node *node)
+    {
+        serial.Open(port);
+        serial.SetBaudRate(baudrate);
+        serial.SetCharacterSize(CharacterSize::CHAR_SIZE_8);
+        serial.SetParity(Parity::PARITY_NONE);
+        serial.SetFlowControl(FlowControl::FLOW_CONTROL_NONE);
+        serial.SetStopBits(StopBits::STOP_BITS_1);
+        serial_timeout_ms = timeout_ms;
         log_node = node;
         run_enable = true;
         worker_thread = std::unique_ptr<std::thread>(new std::thread(&driver::worker, this));
@@ -58,7 +142,7 @@ namespace roboclaw {
         
     void driver::set_timeout_ms(const uint32_t to)
     {
-        serial->setTimeout(boost::posix_time::milliseconds(to));
+        serial_timeout_ms = to;
     }
 
     void driver::crc16_reset() 
@@ -95,7 +179,7 @@ namespace roboclaw {
 
         boost::mutex::scoped_lock lock(serial_mutex);
 
-        std::vector<uint8_t> packet;
+        std::vector<unsigned char> packet;
 
         if (tx_crc)
             packet.resize(tx_length + 4);
@@ -123,7 +207,8 @@ namespace roboclaw {
 
         }
 
-        serial->write((char*)&packet[0], packet.size());
+        serial.Write(packet);
+        // serial->write((char*)&packet[0], packet.size());
         // RCLCPP_INFO(log_node->get_logger(), "Serial write complete");
 
         size_t want_bytes;
@@ -132,9 +217,10 @@ namespace roboclaw {
         else
             want_bytes = rx_length;
 
-        std::vector<char> response_vector;
+        std::vector<unsigned char> response_vector;
 
-        response_vector = serial->read(want_bytes);
+        serial.Read(response_vector, want_bytes, serial_timeout_ms);
+        // response_vector = serial->read(want_bytes);
         // RCLCPP_INFO(log_node->get_logger(), "Serial read complete");
 
         size_t bytes_received = response_vector.size();
@@ -144,7 +230,7 @@ namespace roboclaw {
         if (bytes_received != want_bytes)
         {
             RCLCPP_ERROR(log_node->get_logger(),"Timeout reading from RoboClaw. Wanted %ld bytes got %ld", want_bytes, bytes_received);
-            throw timeout_exception("Timeout reading from RoboClaw.");
+            throw ReadTimeout("Timeout reading from RoboClaw.");
         }
 
         // Check CRC
@@ -948,11 +1034,12 @@ namespace roboclaw {
                     RCLCPP_INFO(log_node->get_logger(), "Clearing input buffer");
                     try
                     {
-                        std::vector<char> tmp = serial->read(1000);
+                        serial.FlushInputBuffer();
+                        serial.FlushOutputBuffer();
                     }
-                    catch(timeout_exception &e) {}
+                    catch(ReadTimeout &e) {}
                 } 
-                catch(timeout_exception &e)
+                catch(ReadTimeout &e)
                 {
                     RCLCPP_ERROR(log_node->get_logger(), "RoboClaw timeout on node %d!", (cmd.first - driver::BASE_ADDRESS));
                 }

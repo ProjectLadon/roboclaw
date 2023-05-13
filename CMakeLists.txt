@@ -73,7 +73,6 @@ rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_t
 
 add_executable(roboclaw_node
         src/roboclaw_driver.cpp
-        src/roboclaw_roscore.cpp
         src/roboclaw_node.cpp)
 
 target_include_directories(roboclaw_node PRIVATE ${SERIAL_INCLUDE_DIRS})
@@ -87,7 +86,6 @@ ament_target_dependencies(roboclaw_node
 
 add_executable(diffdrive_node
         src/roboclaw_driver.cpp
-        src/diffdrive_roscore.cpp
         src/diffdrive_node.cpp)
 
 ament_target_dependencies(diffdrive_node

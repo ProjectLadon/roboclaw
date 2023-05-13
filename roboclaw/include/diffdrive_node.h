@@ -31,8 +31,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "roboclaw/msg/encoder_steps.hpp"
-#include "roboclaw/msg/motor_velocity.hpp"
+#include "roboclaw_interfaces/msg/encoder_steps.hpp"
+#include "roboclaw_interfaces/msg/motor_velocity.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 // #include "geometry_msgs/msg/quaternion.hpp"
@@ -49,10 +49,10 @@ namespace roboclaw {
 
     private:
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr mOdomPub;
-        rclcpp::Publisher<roboclaw::msg::MotorVelocity>::SharedPtr mMotorPub;
+        rclcpp::Publisher<roboclaw_interfaces::msg::MotorVelocity>::SharedPtr mMotorPub;
 
         rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr mTwistSub;
-        rclcpp::Subscription<roboclaw::msg::EncoderSteps>::SharedPtr mEncSub;
+        rclcpp::Subscription<roboclaw_interfaces::msg::EncoderSteps>::SharedPtr mEncSub;
         
         int mLastSteps1;
         int mLastSteps2;
@@ -76,7 +76,7 @@ namespace roboclaw {
         double mVarPosTheta;
 
         void twist_callback(const geometry_msgs::msg::Twist &msg);
-        void encoder_callback(const roboclaw::msg::EncoderSteps &msg);
+        void encoder_callback(const roboclaw_interfaces::msg::EncoderSteps &msg);
     };
 
 }

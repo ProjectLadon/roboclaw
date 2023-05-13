@@ -70,8 +70,8 @@ namespace roboclaw {
 
         // create publishers and subscribers
         mOdomPub    = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
-        mMotorPub   = this->create_publisher<roboclaw::msg::MotorVelocity>("motor_cmd_vel", 10);
-        mEncSub     = this->create_subscription<roboclaw::msg::EncoderSteps>(
+        mMotorPub   = this->create_publisher<roboclaw_interfaces::msg::MotorVelocity>("motor_cmd_vel", 10);
+        mEncSub     = this->create_subscription<roboclaw_interfaces::msg::EncoderSteps>(
                         "motor_enc", 10, bind(&DiffDriveCore::encoder_callback, this, std::placeholders::_1));
         mTwistSub   = this->create_subscription<geometry_msgs::msg::Twist>(
                         "cmd_vel", 10, bind(&DiffDriveCore::twist_callback, this, std::placeholders::_1));
@@ -80,7 +80,7 @@ namespace roboclaw {
     void DiffDriveCore::twist_callback(const geometry_msgs::msg::Twist &msg) 
     {
 
-        auto motor_vel = roboclaw::msg::MotorVelocity();
+        auto motor_vel = roboclaw_interfaces::msg::MotorVelocity();
         motor_vel.index = mTargetIndex;
         motor_vel.mot1_vel_sps = 0;
         motor_vel.mot2_vel_sps = 0;
@@ -122,7 +122,7 @@ namespace roboclaw {
         mMotorPub->publish(motor_vel);
     }
 
-    void DiffDriveCore::encoder_callback(const roboclaw::msg::EncoderSteps &msg) {
+    void DiffDriveCore::encoder_callback(const roboclaw_interfaces::msg::EncoderSteps &msg) {
 
         // TODO: reimplement this at some point -- not required for what we're doing now.
 

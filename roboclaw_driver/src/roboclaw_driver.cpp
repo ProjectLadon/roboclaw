@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "roboclaw_driver.h"
+#include "roboclaw_driver/roboclaw_driver.h"
 
 #include <boost/thread/mutex.hpp>
 #include <boost/bind.hpp>

@@ -1,51 +1,60 @@
 cmake_minimum_required(VERSION 3.8)
-project(roboclaw_driver)
+project(roboclaw_control_hardware_interface)
+
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
+
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -Wno-implicit-fallthrough)
 endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SERIAL libserial)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(roboclaw_driver REQUIRED)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 include_directories(
-        include
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+    include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 ###########
 ## Build ##
 ###########
 
-add_library(roboclaw_driver SHARED src/roboclaw_driver.cpp)
-ament_target_dependencies(roboclaw_driver "rclcpp")
-target_link_libraries(roboclaw_driver ${SERIAL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-ament_export_targets(roboclaw_driver HAS_LIBRARY_TARGET)
+ament_auto_add_library(
+    ${PROJECT_NAME} SHARED
+    src/roboclaw_control.cpp
+)
+
+ament_target_dependencies(
+    ${PROJECT_NAME}
+    "roboclaw_driver"
+    "rclcpp"
+)
+
+# target_link_libraries(
+#     ${PROJECT_NAME}
+#     roboclaw_driver
+# )
+
+pluginlib_export_plugin_description_file(hardware_interface roboclaw_control_hardware_interface.xml)
 
 #############
 ## Install ##
 #############
-
-install(
-    DIRECTORY include/roboclaw_driver 
-    DESTINATION include 
-)
-
-install(
-    TARGETS roboclaw_driver
-    EXPORT roboclaw_driver
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib 
-    RUNTIME DESTINATION bin
-    INCLUDES DESTINATION include 
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -59,4 +68,4 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_package()
+ament_auto_package()

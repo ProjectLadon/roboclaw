@@ -214,11 +214,28 @@ namespace roboclaw {
             const uint32_t timeout_ms,
             rclcpp::Node *node
         );
+
         driver(
             const std::string port, 
             const LibSerial::BaudRate baudrate, 
             const uint32_t timeout_ms,
-            rclcpp::Node *node);
+            rclcpp::Node *node
+        );
+
+        driver(
+            const std::string port, 
+            const uint32_t baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Logger logger
+        );
+
+        driver(
+            const std::string port, 
+            const LibSerial::BaudRate baudrate, 
+            const uint32_t timeout_ms,
+            rclcpp::Logger logger
+        );
+
         ~driver();
 
         void set_timeout_ms(const uint32_t to);
@@ -301,7 +318,7 @@ namespace roboclaw {
         boost::mutex                    queue_mutex;    // mutex to control access to the command queue
         boost::mutex                    data_mutex;     // mutex to control access to the returned data
 
-        rclcpp::Node                    *log_node;
+        rclcpp::Logger                  log_interface;
         
         std::map<uint8_t, float>                    logic_voltages;
         std::map<uint8_t, float>                    motor_voltages;
@@ -333,9 +350,13 @@ namespace roboclaw {
 
         void setup(
             const std::string port, 
+            const uint32_t baudrate, 
+            const uint32_t timeout_ms);
+
+        void setup(
+            const std::string port, 
             const LibSerial::BaudRate baudrate, 
-            const uint32_t timeout_ms,
-            rclcpp::Node *node);
+            const uint32_t timeout_ms);
 
         void worker();
         

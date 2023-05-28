@@ -1,0 +1,9 @@
+<library path="roboclaw_control_hardware_interface">
+  <class name="roboclaw_control_hardware_interface/RoboclawHardwareInterface"
+         type="roboclaw_control_hardware_interface::RoboclawHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Roboclaw plugin for ros2_control.
+    </description>
+  </class>
+</library>

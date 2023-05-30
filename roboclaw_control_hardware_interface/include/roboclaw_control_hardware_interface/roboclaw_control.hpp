@@ -95,20 +95,22 @@ namespace roboclaw
             std::vector<float> current_limit_;
 
             // commands
-            std::vector<int32_t> command_position_;
-            std::vector<int32_t> command_velocity_;
-            std::vector<int32_t> command_effort_;
+            std::vector<double> command_position_;
+            std::vector<double> command_velocity_;
+            std::vector<double> command_effort_;
 
-            // feedback
-            std::vector<int32_t> state_position_;
-            std::vector<int32_t> state_velocity_;
-            std::vector<int32_t> state_effort_;
-            std::vector<int32_t> position_error_;
-            std::vector<int32_t> velocity_error;
+            // per joint feedback
+            std::vector<double> state_position_;
+            std::vector<double> state_velocity_;
+            std::vector<double> state_effort_;
+            std::vector<double> position_error_;
+            std::vector<double> velocity_error_;
             std::vector<double> motor_current_;
+
+            // per node feedback
             std::vector<double> motor_voltage_;
             std::vector<double> logic_voltage_;
-            std::vector<uint32_t> status_;
+            std::vector<double> status_;
 
             enum ctrl_lvl_t : std::uint8_t 
             {

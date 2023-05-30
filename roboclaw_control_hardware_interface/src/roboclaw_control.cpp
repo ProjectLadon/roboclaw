@@ -36,18 +36,18 @@ namespace roboclaw
         addresses_.resize(2);
         position_pid_.resize(info_.joints.size());
         velocity_pid_.resize(info_.joints.size());
-        command_position_.resize(info_.joints.size(), 0);
-        command_velocity_.resize(info_.joints.size(), 0);
-        command_effort_.resize(info_.joints.size(), 0);
-        state_position_.resize(info_.joints.size(), 0);
-        state_velocity_.resize(info_.joints.size(), 0);
-        state_effort_.resize(info_.joints.size(), 0);
-        position_error_.resize(info_.joints.size(), 0);
-        velocity_error.resize(info_.joints.size(), 0);
+        command_position_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        command_velocity_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        command_effort_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        state_position_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        state_velocity_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        state_effort_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        position_error_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        velocity_error_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         motor_current_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         motor_voltage_.resize(info_.sensors.size(), std::numeric_limits<double>::quiet_NaN());
         logic_voltage_.resize(info_.sensors.size(), std::numeric_limits<double>::quiet_NaN());
-        status_.resize(info_.sensors.size(), 0);
+        status_.resize(info_.sensors.size(), std::numeric_limits<double>::quiet_NaN());
 
         for (const hardware_interface::ComponentInfo & sensor : info_.sensors) 
         {
@@ -101,6 +101,76 @@ namespace roboclaw
   
         return CallbackReturn::SUCCESS;
     } 
+
+    CallbackReturn RoboclawHardwareInterface::on_activate(const rclcpp_lifecycle::State &)
+    {
+        for (size_t i = 0; i < info_.joints.size(); i++)
+        {
+            roboclaw_->set_duty_single(addresses_[1][i].first, addresses_[1][i].second, 0);
+        }
+
+        return CallbackReturn::SUCCESS;
+    }
+
+    CallbackReturn RoboclawHardwareInterface::on_deactivate(const rclcpp_lifecycle::State &)
+    {
+        for (size_t i = 0; i < info_.joints.size(); i++)
+        {
+            roboclaw_->set_duty_single(addresses_[1][i].first, addresses_[1][i].second, 0);
+        }
+
+        return CallbackReturn::SUCCESS;
+    }
+
+    std::vector<hardware_interface::StateInterface> RoboclawHardwareInterface::export_state_interfaces()
+    {
+        std::vector<hardware_interface::StateInterface> interfaces;
+
+        for (size_t i = 0; i < info_.sensors.size(); i++) 
+        {
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.sensors[i].name, "motor_voltage", &motor_voltage_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.sensors[i].name, "logic_voltage", &logic_voltage_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.sensors[i].name, "status", &status_[i]));
+        }
+
+        for (size_t i = 0; i < info_.joints.size(); i++) 
+        {
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_EFFORT, &state_effort_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &state_velocity_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_POSITION, &state_position_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, "position_error", &position_error_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, "velocity_error", &velocity_error_[i]));
+            interfaces.emplace_back(hardware_interface::StateInterface(
+                info_.joints[i].name, "motor_current", &motor_current_[i]));
+        }
+
+        return interfaces;
+    }
+
+    std::vector<hardware_interface::CommandInterface> RoboclawHardwareInterface::export_command_interfaces()
+    {
+        std::vector<hardware_interface::CommandInterface> interfaces;
+
+        for (size_t i = 0; i < info_.joints.size(); i++) 
+        {
+            interfaces.emplace_back(hardware_interface::CommandInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_EFFORT, &command_effort_[i]));
+            interfaces.emplace_back(hardware_interface::CommandInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &command_velocity_[i]));
+            interfaces.emplace_back(hardware_interface::CommandInterface(
+                info_.joints[i].name, hardware_interface::HW_IF_POSITION, &command_position_[i]));
+        }
+
+        return interfaces;
+    }
 
     bool RoboclawHardwareInterface::bad_inputs(uint8_t idx, uint8_t chan)
     {

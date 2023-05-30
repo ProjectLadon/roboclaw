@@ -32,6 +32,116 @@ namespace roboclaw
         {
             return CallbackReturn::ERROR;
         } 
+  
+        addresses_.resize(2);
+        position_pid_.resize(info_.joints.size());
+        velocity_pid_.resize(info_.joints.size());
+        command_position_.resize(info_.joints.size(), 0);
+        command_velocity_.resize(info_.joints.size(), 0);
+        command_effort_.resize(info_.joints.size(), 0);
+        state_position_.resize(info_.joints.size(), 0);
+        state_velocity_.resize(info_.joints.size(), 0);
+        state_effort_.resize(info_.joints.size(), 0);
+        position_error_.resize(info_.joints.size(), 0);
+        velocity_error.resize(info_.joints.size(), 0);
+        motor_current_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+        motor_voltage_.resize(info_.sensors.size(), std::numeric_limits<double>::quiet_NaN());
+        logic_voltage_.resize(info_.sensors.size(), std::numeric_limits<double>::quiet_NaN());
+        status_.resize(info_.sensors.size(), 0);
 
+        for (const hardware_interface::ComponentInfo & sensor : info_.sensors) 
+        {
+            uint8_t idx = std::stoi(sensor.parameters.at("node_index"));
+            if (!bad_inputs(idx, 1)) 
+            {
+                addresses_[0].emplace_back(std::make_pair(idx, 1));
+            }
+            else
+            {
+                addresses_[0].emplace_back(std::make_pair(0, 0));
+            }
+        }
+
+        for (const hardware_interface::ComponentInfo & joint : info_.joints) 
+        {
+            uint8_t idx = std::stoi(joint.parameters.at("node_index"));
+            uint8_t channel = std::stoi(joint.parameters.at("channel"));
+            if (!bad_inputs(idx, channel)) 
+            {
+                addresses_[1].emplace_back(std::make_pair(idx, channel));
+            }
+            else
+            {
+                addresses_[1].emplace_back(std::make_pair(0, 0));
+            }
+            position_pid_.emplace_back(fetch_position_pid(joint));
+            velocity_pid_.emplace_back(fetch_velocity_pid(joint));
+            try { current_limit_.emplace_back(std::stof(joint.parameters.at("current_limit"))); }
+            catch (const std::exception &e)
+            { current_limit_.emplace_back(std::numeric_limits<float>::quiet_NaN()); }
+
+        }
+
+        roboclaw_ = std::make_unique<driver>(
+            info_.hardware_parameters.at("serial_port"),
+            std::stoi(info_.hardware_parameters.at("baudrate")),
+            std::stoi(info_.hardware_parameters.at("timeout_ms")),
+            logger_
+        );
+
+        for (size_t i = 0; i < info_.joints.size(); i++)
+        {
+            roboclaw_->set_velocity_pid(addresses_[1][i].first, addresses_[1][i].second, velocity_pid_[i]);
+            roboclaw_->set_position_pid(addresses_[1][i].first, addresses_[1][i].second, position_pid_[i]);
+            if (current_limit_[i] != std::numeric_limits<float>::quiet_NaN())
+            {
+                roboclaw_->set_current_limit(addresses_[1][i].first, addresses_[1][i].second, current_limit_[i]);
+            }
+        }
+  
+        return CallbackReturn::SUCCESS;
+    } 
+
+    bool RoboclawHardwareInterface::bad_inputs(uint8_t idx, uint8_t chan)
+    {
+        if ((chan > 2) or (chan < 1))
+        {
+            RCLCPP_ERROR(logger_,  "Roboclaw channel must be either 1 or 2; is %d", chan);
+            return true;
+        }
+        if (idx >= 8)
+        {
+            RCLCPP_ERROR(logger_,  "Only a maximum of 8 roboclaws can be connected; you called for %d", idx);
+            return true;
+        }
+        return false;
     }
+            
+    position_pid_t RoboclawHardwareInterface::fetch_position_pid(const hardware_interface::ComponentInfo& joint)
+    {
+        position_pid_t retval = {}; // zero everything
+        retval.max_pos = std::numeric_limits<int32_t>::max();
+        retval.min_pos = std::numeric_limits<int32_t>::min();
+        try { retval.deadzone = std::stoul(joint.parameters.at("position_pid_deadzone")); } catch (const std::exception &e) {}
+        try { retval.max_pos = std::stol(joint.parameters.at("position_pid_max_pos")); } catch (const std::exception &e) {}
+        try { retval.min_pos = std::stol(joint.parameters.at("position_pid_min_pos")); } catch (const std::exception &e) {}
+        try { retval.p = std::stof(joint.parameters.at("position_pid_p")); } catch (const std::exception &e) {}
+        try { retval.i = std::stof(joint.parameters.at("position_pid_i")); } catch (const std::exception &e) {}
+        try { retval.d = std::stof(joint.parameters.at("position_pid_d")); } catch (const std::exception &e) {}
+        try { retval.max_i = std::stof(joint.parameters.at("position_pid_max_i")); } catch (const std::exception &e) {}
+        return retval;
+    }
+
+    velocity_pid_t RoboclawHardwareInterface::fetch_velocity_pid(const hardware_interface::ComponentInfo& joint)
+    {
+        velocity_pid_t retval = {}; // zero everything
+        try { retval.qpps = std::stoul(joint.parameters.at("velocity_pid_qpps")); } catch (const std::exception &e) {}
+        try { retval.p = std::stof(joint.parameters.at("velocity_pid_p")); } catch (const std::exception &e) {}
+        try { retval.i = std::stof(joint.parameters.at("velocity_pid_i")); } catch (const std::exception &e) {}
+        try { retval.d = std::stof(joint.parameters.at("velocity_pid_d")); } catch (const std::exception &e) {}
+        return retval;
+    }
+
+    rclcpp::Logger RoboclawHardwareInterface::logger_ = rclcpp::get_logger("RoboclawHardwareInterface");
+
 } // namespace roboclaw

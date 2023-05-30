@@ -26,6 +26,7 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <utility>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/macros.hpp"
@@ -84,20 +85,30 @@ namespace roboclaw
 
         private:
 
-            std::unique_ptr<driver> mRoboClaw;
+            std::unique_ptr<driver> roboclaw_;
+            static rclcpp::Logger logger_;
+
+            // configuration
+            std::vector<std::vector<std::pair<uint8_t, uint8_t>>> addresses_;
+            std::vector<position_pid_t> position_pid_;
+            std::vector<velocity_pid_t> velocity_pid_;
+            std::vector<float> current_limit_;
 
             // commands
-            std::vector<double> mCmdPosns;
-            std::vector<double> mCmdVels;
-            std::vector<double> mCmdEffort;
+            std::vector<int32_t> command_position_;
+            std::vector<int32_t> command_velocity_;
+            std::vector<int32_t> command_effort_;
 
             // feedback
-            std::vector<double> mStatePosns;
-            std::vector<double> mStateVels;
-            std::vector<double> mStateEffort;
-            std::vector<double> mPosnErr;
-            std::vector<double> mVelocityErr;
-            std::vector<double> mCurrent;
+            std::vector<int32_t> state_position_;
+            std::vector<int32_t> state_velocity_;
+            std::vector<int32_t> state_effort_;
+            std::vector<int32_t> position_error_;
+            std::vector<int32_t> velocity_error;
+            std::vector<double> motor_current_;
+            std::vector<double> motor_voltage_;
+            std::vector<double> logic_voltage_;
+            std::vector<uint32_t> status_;
 
             enum ctrl_lvl_t : std::uint8_t 
             {
@@ -107,7 +118,10 @@ namespace roboclaw
                 POSITION = 3
             };
 
-            std::vector<ctrl_lvl_t> mCtrlLevels;
+            std::vector<ctrl_lvl_t> control_levels_;
+            bool bad_inputs(uint8_t idx, uint8_t chan);
+            position_pid_t fetch_position_pid(const hardware_interface::ComponentInfo& joint);
+            velocity_pid_t fetch_velocity_pid(const hardware_interface::ComponentInfo& joint);
 
     };
-}
+} //namespace roboclaw

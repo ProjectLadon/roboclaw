@@ -1,8 +1,0 @@
-# Reset the encoder for the given node and motor
-
-uint8 node 
-uint8 channel
-int32 value 0
----
-bool success
-string error "success"

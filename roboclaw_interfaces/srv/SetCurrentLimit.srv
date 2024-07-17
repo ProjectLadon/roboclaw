@@ -1,8 +1,0 @@
-# Set the current limit for the given node and channel
-
-uint8 node 
-uint8 channel
-float32 max_current
----
-bool success
-string error "success"

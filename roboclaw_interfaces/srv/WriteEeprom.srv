@@ -1,5 +1,0 @@
-# Write current setting to EEPROM
-
-uint8 node 
----
-bool success

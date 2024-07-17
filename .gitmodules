@@ -1,0 +1,3 @@
+[submodule "roboclaw_interfaces"]
+	path = roboclaw_interfaces
+	url = git@github.com:ProjectLadon/roboclaw_interfaces.git

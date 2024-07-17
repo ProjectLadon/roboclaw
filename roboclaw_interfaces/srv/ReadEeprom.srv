@@ -1,5 +1,0 @@
-# Read settings from EEPROM
-
-uint8 node 
----
-bool success
